@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package myprotos.v1;
+
+option go_package = "github.com/nexus-rpc/nexus-rpc-gen/packages/nexus-rpc-gen-tests/languages/go;myprotos";
+option java_package = "com.example.nexusservices.myprotos";
+option java_multiple_files = true;
+option java_outer_classname = "MessageProto";
+option csharp_namespace = "NexusServices.MyProtos";
+
+message SomeProtoType {
+    string some_field = 1;
+
+    message SomeNestedProtoType {
+        int32 some_nested_field = 2;
+    }
+}

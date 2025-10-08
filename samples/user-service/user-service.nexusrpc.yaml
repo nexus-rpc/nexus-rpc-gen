@@ -1,0 +1,83 @@
+# yaml-language-server: $schema=../../schemas/nexus-rpc-gen.json
+nexusrpc: 1.0.0
+
+services:
+  UserService:
+    description: A service for managing users.
+    operations:
+      getUser:
+        description: Get a user.
+        input:
+          $ref: '#/types/GetUserInput'
+        output:
+          $ref: '#/types/GetUserOutput'
+      setUser:
+        description: Create or update a user.
+        input:
+          $ref: '#/types/SetUserInput'
+        output:
+          $ref: '#/types/SetUserOutput'
+      deleteUser:
+        description: Delete a user.
+        input:
+          $ref: '#/types/DeleteUserInput'
+
+types:
+
+  # Input/output types.
+  #
+  # It is recommended to make completely separate, single object types for input
+  # and output so they can be extended with properties in the future.
+  GetUserInput:
+    type: object
+    additionalProperties: false
+    properties:
+      userId:
+        description: User ID for the user.
+        type: string
+    required: [userId]
+  GetUserOutput:
+    type: object
+    additionalProperties: false
+    properties:
+      user:
+        $ref: '#/types/User'
+    required: [user]
+  SetUserInput:
+    type: object
+    additionalProperties: false
+    properties:
+      user:
+        $ref: '#/types/User'
+    required: [user]
+  SetUserOutput:
+    type: object
+    additionalProperties: false
+    properties:
+      user:
+        $ref: '#/types/User'
+    required: [user]
+  DeleteUserInput:
+    type: object
+    additionalProperties: false
+    properties:
+      userId:
+        description: User ID for the user.
+        type: string
+    required: [userId]
+
+  # General types
+  User:
+    description: A user.
+    type: object
+    additionalProperties: false
+    properties:
+      userId:
+        description: User ID for the user.
+        type: string
+      email:
+        description: Email for the user.
+        type: string
+    # We chose not to mark userId as required because it is not required for
+    # setUser
+    #required: [userId]

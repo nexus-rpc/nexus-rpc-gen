@@ -1,0 +1,55 @@
+plugins {
+    id 'java-library'
+    id 'com.diffplug.spotless' version '6.25.0'
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'io.nexusrpc:nexus-sdk:0.4.0-alpha'
+
+    api platform('com.fasterxml.jackson:jackson-bom') {
+        version {
+            require '2.9.0'
+            prefer '2.15.0'
+        }
+    }
+    api 'com.fasterxml.jackson.core:jackson-databind'
+    implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
+    implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jdk8'
+    
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(8)
+    }
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+    // No cache, always re-run
+    outputs.upToDateWhen { false }
+    outputs.cacheIf { false }
+
+    // Show test output
+    testLogging {
+        events "started", "passed", "skipped", "failed", "standardOut", "standardError"
+        showStandardStreams = true
+        showExceptions = true
+        showCauses = true
+        showStackTraces = true
+    }
+}
+
+spotless {
+    java {
+        googleJavaFormat()
+    }
+}
+
+classes.dependsOn 'spotlessApply'

@@ -1,0 +1,19 @@
+{
+  "name": "nexus-rpc-gen-tests-typescript",
+  "private": true,
+  "main": "dist/index.js",
+  "type": "module",
+  "engines": {
+    "node": ">= 18.0.0"
+  },
+  "scripts": {
+    "build": "tsc --build",
+    "test": "node --test dist/tests.js"
+  },
+  "dependencies": {
+    "nexus-rpc": "^0.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24.7.0"
+  }
+}

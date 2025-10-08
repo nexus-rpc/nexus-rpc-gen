@@ -1,0 +1,17 @@
+package com.example.nexusservices;
+
+import com.fasterxml.jackson.annotation.*;
+
+public class PurpleStrangeItem {
+  private Long someField;
+
+  @JsonProperty("someField")
+  public Long getSomeField() {
+    return someField;
+  }
+
+  @JsonProperty("someField")
+  public void setSomeField(Long value) {
+    this.someField = value;
+  }
+}

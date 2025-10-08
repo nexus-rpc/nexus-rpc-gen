@@ -1,0 +1,28 @@
+package com.example.nexusservices;
+
+import com.fasterxml.jackson.annotation.*;
+
+public class ComplexOutput {
+  private ComplexOutput selfRef;
+  private SharedObject someSharedObj;
+
+  @JsonProperty("selfRef")
+  public ComplexOutput getSelfRef() {
+    return selfRef;
+  }
+
+  @JsonProperty("selfRef")
+  public void setSelfRef(ComplexOutput value) {
+    this.selfRef = value;
+  }
+
+  @JsonProperty("someSharedObj")
+  public SharedObject getSomeSharedObj() {
+    return someSharedObj;
+  }
+
+  @JsonProperty("someSharedObj")
+  public void setSomeSharedObj(SharedObject value) {
+    this.someSharedObj = value;
+  }
+}

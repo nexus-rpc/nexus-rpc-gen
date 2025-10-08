@@ -1,0 +1,114 @@
+package services
+
+import "net/http"
+import "time"
+
+import "github.com/nexus-rpc-gen/packages/nexus-rpc-gen-tests/languages/go/services/types"
+import "github.com/nexus-rpc/sdk-go/nexus"
+
+// A service for all types of operations
+var KitchenSinkService = struct {
+	ServiceName                           string
+	// Counts the characters in the string
+	ScalarArgScalarResult                 nexus.OperationReference[KitchenSinkServiceScalarArgScalarResultInput, KitchenSinkServiceScalarArgScalarResultOutput]
+	// Counts the characters in a string  
+	ComplexArgComplexResultInline         nexus.OperationReference[KitchenSinkServiceComplexArgComplexResultInlineInput, KitchenSinkServiceComplexArgComplexResultInlineOutput]
+	ScalarArgScalarResultExternal         nexus.OperationReference[ScalarInput, ScalarOutput]
+	ComplexArgComplexResultExternal       nexus.OperationReference[ComplexInput, ComplexOutput]
+}{
+	ServiceName:                     "KitchenSinkService",
+	ScalarArgScalarResult:           nexus.NewOperationReference[KitchenSinkServiceScalarArgScalarResultInput, KitchenSinkServiceScalarArgScalarResultOutput]("scalarArgScalarResult"),
+	ComplexArgComplexResultInline:   nexus.NewOperationReference[KitchenSinkServiceComplexArgComplexResultInlineInput, KitchenSinkServiceComplexArgComplexResultInlineOutput]("complexArgComplexResultInline"),
+	ScalarArgScalarResultExternal:   nexus.NewOperationReference[ScalarInput, ScalarOutput]("scalarArgScalarResultExternal"),
+	ComplexArgComplexResultExternal: nexus.NewOperationReference[ComplexInput, ComplexOutput]("complexArgComplexResultExternal"),
+}
+
+var StrangeItemService = struct {
+	ServiceName  string
+	StrangeItem  nexus.OperationReference[StrangeItem, PurpleStrangeItem]
+	StrangeItem2 nexus.OperationReference[nexus.NoValue, nexus.NoValue]
+}{
+	ServiceName:  "Strange{Item}",
+	StrangeItem:  nexus.NewOperationReference[StrangeItem, PurpleStrangeItem]("Strange{Item}"),
+	StrangeItem2: nexus.NewOperationReference[nexus.NoValue, nexus.NoValue]("StrangeItem"),
+}
+
+var StrangeItemService2 = struct {
+	ServiceName string
+}{
+	ServiceName: "StrangeItem",
+}
+
+var ReservedWordService = struct {
+	ServiceName string
+	ToString    nexus.OperationReference[nexus.NoValue, nexus.NoValue]
+}{
+	ServiceName: "ReservedWordService",
+	ToString:    nexus.NewOperationReference[nexus.NoValue, nexus.NoValue]("ToString"),
+}
+
+var ExistingTypesService = struct {
+	ServiceName                string
+	SpecificTypesForSomeLangs  nexus.OperationReference[types.MyExistingType, ComplexOutput]
+	SpecificTypesForOtherLangs nexus.OperationReference[ComplexInput, http.Header]
+}{
+	ServiceName:                "ExistingTypesService",
+	SpecificTypesForSomeLangs:  nexus.NewOperationReference[types.MyExistingType, ComplexOutput]("specificTypesForSomeLangs"),
+	SpecificTypesForOtherLangs: nexus.NewOperationReference[ComplexInput, http.Header]("specificTypesForOtherLangs"),
+}
+
+var DateService = struct {
+	ServiceName   string
+	DateOperation nexus.OperationReference[DateInput, nexus.NoValue]
+}{
+	ServiceName:   "DateService",
+	DateOperation: nexus.NewOperationReference[DateInput, nexus.NoValue]("dateOperation"),
+}
+
+type KitchenSinkServiceScalarArgScalarResultInput string
+
+type KitchenSinkServiceScalarArgScalarResultOutput int64
+
+type ScalarInput string
+
+type ScalarOutput int64
+
+// Input type
+type KitchenSinkServiceComplexArgComplexResultInlineInput struct {
+	// String to count        
+	String            *string `json:"string,omitempty"`
+}
+
+// Output type
+type KitchenSinkServiceComplexArgComplexResultInlineOutput struct {
+	// Count of characters       
+	CharacterCount        *int64 `json:"characterCount,omitempty"`
+}
+
+type ComplexInput struct {
+	SelfRef       *ComplexInput `json:"selfRef,omitempty"`
+	SomeSharedObj *SharedObject `json:"someSharedObj,omitempty"`
+}
+
+type SharedObject struct {
+	SomeField *int64 `json:"someField,omitempty"`
+}
+
+type ComplexOutput struct {
+	SelfRef       *ComplexOutput `json:"selfRef,omitempty"`
+	SomeSharedObj *SharedObject  `json:"someSharedObj,omitempty"`
+}
+
+type StrangeItem struct {
+	SomeField *int64 `json:"someField,omitempty"`
+}
+
+type PurpleStrangeItem struct {
+	SomeField *int64 `json:"someField,omitempty"`
+}
+
+type DateInput struct {
+	Date     *string    `json:"date,omitempty"`
+	DateTime *time.Time `json:"dateTime,omitempty"`
+	Time     *string    `json:"time,omitempty"`
+}

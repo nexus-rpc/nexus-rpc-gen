@@ -1,0 +1,69 @@
+name: Continuous Integration
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - "releases/*"
+permissions:
+  contents: read
+
+jobs:
+  build-lint-test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - name: Build
+        working-directory: src
+        run: npm install && npm run build
+
+      # Regenerating so we can check diff later to ensure it is up to date
+      - name: Regenerate schema
+        working-directory: src
+        run: npm run build:schema
+
+      - name: Lint
+        working-directory: src
+        run: npm run lint
+
+      - name: Setup test prereq (.NET)
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 9.x
+
+      - name: Setup test prereq (Go)
+        uses: actions/setup-go@v6
+        with:
+          go-version: "1.25"
+        
+      - name: Setup test prereq (Java)
+        uses: actions/setup-java@v5
+        with:
+          java-version: 17
+          distribution: temurin
+        
+      - name: Setup test prereq (Python)
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      
+      - name: Setup test prereq (uv)
+        uses: astral-sh/setup-uv@v7
+
+      - name: Test
+        working-directory: src
+        run: npm run test
+
+      - name: Diff to ensure everything was committed properly
+        working-directory: src
+        # We have to lint:fix first to update generated TS code
+        run: npm run lint:fix && git diff --exit-code

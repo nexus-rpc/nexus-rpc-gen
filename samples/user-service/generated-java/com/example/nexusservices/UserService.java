@@ -1,0 +1,28 @@
+package com.example.nexusservices;
+
+import io.nexusrpc.Operation;
+import io.nexusrpc.Service;
+
+/**
+ * A service for managing users.
+ */
+@Service
+public interface UserService {
+  /**
+   * Get a user.
+   */
+  @Operation(name="getUser")
+  GetUserOutput getUserOperation(GetUserInput input);
+
+  /**
+   * Create or update a user.
+   */
+  @Operation(name="setUser")
+  SetUserOutput setUserOperation(SetUserInput input);
+
+  /**
+   * Delete a user.
+   */
+  @Operation
+  void deleteUser(DeleteUserInput input);
+}

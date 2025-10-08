@@ -1,0 +1,13 @@
+package com.example.nexusservices;
+
+import io.nexusrpc.Operation;
+import io.nexusrpc.Service;
+
+@Service(name = "Strange{Item}")
+public interface StrangeItemService {
+  @Operation(name = "Strange{Item}")
+  PurpleStrangeItem strangeItem(StrangeItem input);
+
+  @Operation(name = "StrangeItem")
+  void strangeItem2();
+}

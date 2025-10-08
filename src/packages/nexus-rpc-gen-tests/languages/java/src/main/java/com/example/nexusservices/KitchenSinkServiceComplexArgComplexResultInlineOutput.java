@@ -1,0 +1,19 @@
+package com.example.nexusservices;
+
+import com.fasterxml.jackson.annotation.*;
+
+/** Output type */
+public class KitchenSinkServiceComplexArgComplexResultInlineOutput {
+  private Long characterCount;
+
+  /** Count of characters */
+  @JsonProperty("characterCount")
+  public Long getCharacterCount() {
+    return characterCount;
+  }
+
+  @JsonProperty("characterCount")
+  public void setCharacterCount(Long value) {
+    this.characterCount = value;
+  }
+}

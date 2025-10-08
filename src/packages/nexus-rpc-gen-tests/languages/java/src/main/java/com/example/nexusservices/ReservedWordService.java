@@ -1,0 +1,10 @@
+package com.example.nexusservices;
+
+import io.nexusrpc.Operation;
+import io.nexusrpc.Service;
+
+@Service
+public interface ReservedWordService {
+  @Operation(name = "ToString")
+  void toStringOperation();
+}
