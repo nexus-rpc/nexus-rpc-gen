@@ -26,8 +26,8 @@ func (KitchenSinkService) ComplexArgComplexResultInline(
 	input services.KitchenSinkServiceComplexArgComplexResultInlineInput,
 	options nexus.StartOperationOptions,
 ) (services.KitchenSinkServiceComplexArgComplexResultInlineOutput, error) {
-	count := int64(len(*input.String))
-	return services.KitchenSinkServiceComplexArgComplexResultInlineOutput{CharacterCount: &count}, nil
+	count := int64(len(input.String))
+	return services.KitchenSinkServiceComplexArgComplexResultInlineOutput{CharacterCount: count}, nil
 }
 
 func (k KitchenSinkService) BuildNexusService() *nexus.Service {
@@ -86,5 +86,5 @@ func TestKitchenSink(t *testing.T) {
 	require.NoError(t, err)
 	complexResultSync :=
 		complexResult.(*nexus.HandlerStartOperationResultSync[services.KitchenSinkServiceComplexArgComplexResultInlineOutput])
-	require.Equal(t, int64(17), *complexResultSync.Value.CharacterCount)
+	require.Equal(t, int64(17), complexResultSync.Value.CharacterCount)
 }

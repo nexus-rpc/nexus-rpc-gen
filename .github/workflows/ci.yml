@@ -24,7 +24,7 @@ jobs:
 
       - name: Build
         working-directory: src
-        run: npm install && npm run build
+        run: npm ci && npm run build
 
       # Regenerating so we can check diff later to ensure it is up to date
       - name: Regenerate schema
@@ -43,7 +43,7 @@ jobs:
       - name: Setup test prereq (Go)
         uses: actions/setup-go@v6
         with:
-          go-version: "1.25"
+          go-version-file: src/packages/nexus-rpc-gen-tests/languages/go/go.mod
         
       - name: Setup test prereq (Java)
         uses: actions/setup-java@v5

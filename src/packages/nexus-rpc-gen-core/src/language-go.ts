@@ -19,11 +19,30 @@ import {
 } from "./generator.js";
 import { RenderAdapter, type RenderAccessible } from "./render-adapter.js";
 import { stringEscape } from "quicktype-core/dist/support/Strings.js";
+import {
+  BooleanOption,
+  getOptionValues,
+} from "quicktype-core/dist/RendererOptions/index.js";
+import { primitiveValueTypeKinds } from "quicktype-core/dist/language/Golang/utils.js";
+
+// Add options
+export const goWithNexusOptions = {
+  primitivePointers: new BooleanOption(
+    "primitive-pointers",
+    "Use pointers for nullable primitives",
+    false,
+  ),
+  ...goOptions,
+};
 
 // Change some defaults globally
-goOptions.justTypesAndPackage.definition.defaultValue = true;
+goWithNexusOptions.justTypesAndPackage.definition.defaultValue = true;
 
 export class GoLanguageWithNexus extends GoTargetLanguage {
+  override getOptions(): typeof goWithNexusOptions {
+    return goWithNexusOptions;
+  }
+
   protected override makeRenderer<Lang extends LanguageName = "go">(
     renderContext: RenderContext,
     untypedOptionValues: RendererOptions<Lang>,
@@ -33,6 +52,8 @@ export class GoLanguageWithNexus extends GoTargetLanguage {
       untypedOptionValues,
     );
     adapter.assertValidOptions();
+
+    const options = getOptionValues(goWithNexusOptions, untypedOptionValues);
 
     return adapter.makeRenderer({
       emitSourceStructure(original) {
@@ -47,6 +68,16 @@ export class GoLanguageWithNexus extends GoTargetLanguage {
         }
         original(t, name);
       },
+      nullableGoType(original, t, withIssues) {
+        // If the kind is a primitive and primitive pointers disabled, just return goType
+        if (
+          !options.primitivePointers &&
+          primitiveValueTypeKinds.includes(t.kind)
+        ) {
+          return adapter.render.goType(t, withIssues);
+        }
+        return original(t, withIssues);
+      },
     });
   }
 }
@@ -60,6 +91,7 @@ type GoRenderAccessible = Omit<GoRenderer, "emitTypesAndSupport"> &
     emitTopLevel(t: Type, name: Name): void;
     goType(t: Type, withIssues?: boolean): Sourcelike;
     namerForObjectProperty(): Namer;
+    nullableGoType(t: Type, withIssues: boolean): Sourcelike;
   };
 
 class GoRenderAdapter extends RenderAdapter<GoRenderAccessible> {

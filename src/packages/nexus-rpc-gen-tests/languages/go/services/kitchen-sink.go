@@ -75,14 +75,14 @@ type ScalarOutput int64
 
 // Input type
 type KitchenSinkServiceComplexArgComplexResultInlineInput struct {
-	// String to count        
-	String            *string `json:"string,omitempty"`
+	// String to count       
+	String            string `json:"string,omitempty"`
 }
 
 // Output type
 type KitchenSinkServiceComplexArgComplexResultInlineOutput struct {
-	// Count of characters       
-	CharacterCount        *int64 `json:"characterCount,omitempty"`
+	// Count of characters      
+	CharacterCount        int64 `json:"characterCount,omitempty"`
 }
 
 type ComplexInput struct {
@@ -91,7 +91,7 @@ type ComplexInput struct {
 }
 
 type SharedObject struct {
-	SomeField *int64 `json:"someField,omitempty"`
+	SomeField int64 `json:"someField,omitempty"`
 }
 
 type ComplexOutput struct {
@@ -100,15 +100,15 @@ type ComplexOutput struct {
 }
 
 type StrangeItem struct {
-	SomeField *int64 `json:"someField,omitempty"`
+	SomeField int64 `json:"someField,omitempty"`
 }
 
 type PurpleStrangeItem struct {
-	SomeField *int64 `json:"someField,omitempty"`
+	SomeField int64 `json:"someField,omitempty"`
 }
 
 type DateInput struct {
-	Date     *string    `json:"date,omitempty"`
+	Date     string     `json:"date,omitempty"`
 	DateTime *time.Time `json:"dateTime,omitempty"`
-	Time     *string    `json:"time,omitempty"`
+	Time     string     `json:"time,omitempty"`
 }

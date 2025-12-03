@@ -29,10 +29,10 @@ type GetUserOutput struct {
 
 // A user.
 type User struct {
-	// Email for the user.          
-	Email                   *string `json:"email,omitempty"`
-	// User ID for the user.        
-	UserID                  *string `json:"userId,omitempty"`
+	// Email for the user.         
+	Email                   string `json:"email,omitempty"`
+	// User ID for the user.       
+	UserID                  string `json:"userId,omitempty"`
 }
 
 type SetUserInput struct {

@@ -20,6 +20,11 @@ import { utf16StringEscape } from "quicktype-core/dist/support/Strings.js";
 tsFlowOptions.justTypes.definition.defaultValue = true;
 
 export class TypeScriptLanguageWithNexus extends TypeScriptTargetLanguage {
+  protected override get defaultIndentation(): string {
+    // We want two-space indent to be default for TypeScript
+    return "  ";
+  }
+
   protected override makeRenderer<Lang extends LanguageName = "typescript">(
     renderContext: RenderContext,
     untypedOptionValues: RendererOptions<Lang>,
