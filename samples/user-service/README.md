@@ -1,6 +1,7 @@
 # User Service
 
-This is a very simple user service with a few operations. Here is how the code was generated for each language
+This is a very simple user service with a few operations. Here is how the code was generated for each language from this
+directory:
 
 ### C#
 

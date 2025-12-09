@@ -39,7 +39,7 @@ To generate TypeScript code from a definition file:
 nexus-rpc-gen --lang ts --out-file my-out-file.ts my-service.nexusrpc.yaml
 ```
 
-This will generate a `my-out-file.ts` coed file from the given YAML definition file. See [samples](samples) for what
+This will generate a `my-out-file.ts` code file from the given YAML definition file. See [samples](samples) for what
 output may look like in different languages.
 
 ## Definition File
