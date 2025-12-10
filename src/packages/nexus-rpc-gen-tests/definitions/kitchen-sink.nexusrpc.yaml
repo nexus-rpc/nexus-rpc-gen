@@ -1,0 +1,160 @@
+# yaml-language-server: $schema=../../../../schemas/nexus-rpc-gen.json
+nexusrpc: 1.0.0
+services:
+  KitchenSinkService:
+    description: A service for all types of operations
+    operations:
+      # Tests are only expected to _implement_ these first two, all others are
+      # just to confirm generator works as expected
+
+      scalarArgScalarResult:
+        description: Counts the characters in the string
+        input:
+          description: String to count
+          type: string
+        output:
+          description: Count of characters
+          type: integer
+
+      complexArgComplexResultInline:
+        description: Counts the characters in a string
+        input:
+          description: Input type
+          type: object
+          additionalProperties: false
+          properties:
+            string:
+              description: String to count
+              type: string
+        output:
+          description: Output type
+          type: object
+          additionalProperties: false
+          properties:
+            characterCount:
+              description: Count of characters
+              type: integer
+
+      scalarArgScalarResultExternal:
+        input:
+          $ref: '#/types/ScalarInput'
+        output:
+          $ref: '#/types/ScalarOutput'
+
+      complexArgComplexResultExternal:
+        input:
+          $ref: '#/types/ComplexInput'
+        output:
+          $ref: '#/types/ComplexOutput'
+
+  # Funny names with clashes
+  'Strange{Item}':
+    operations:
+      'Strange{Item}':
+        input:
+          $ref: '#/types/Strange{Item}'
+        output:
+          $ref: '#/types/StrangeItem'
+      StrangeItem: {}
+  StrangeItem:
+    operations: {}
+
+  # Reserved words
+  ReservedWordService:
+    operations:
+      # Java, C#, and TS
+      ToString: {}
+
+  ExistingTypesService:
+    operations:
+      # One operation will have existing types for some langs with fallback for
+      # others
+      specificTypesForSomeLangs:
+        input:
+          $javaRef: com.example.MyExistingType
+          $goRef: github.com/nexus-rpc-gen/packages/nexus-rpc-gen-tests/languages/go/services/types.MyExistingType
+          $pythonRef: services.types.MyExistingType
+          $ref: '#/types/ComplexInput'
+        output:
+          $csharpRef: NexusServices.MyExistingType.MyExistingNestedType
+          $typescriptRef: node:url#URL
+          $ref: '#/types/ComplexOutput'
+      specificTypesForOtherLangs:
+        input:
+          $csharpRef: NexusServices.MyExistingType
+          $typescriptRef: ./types.js#MyExistingType
+          $ref: '#/types/ComplexInput'
+        output:
+          $javaRef: com.example.MyExistingType.MyExistingNestedType
+          $goRef: net/http.Header
+          $pythonRef: collections.deque
+          $ref: '#/types/ComplexOutput'
+
+  DateService:
+    operations:
+      dateOperation:
+        input:
+          $ref: '#/types/DateInput'
+types:
+  ScalarInput:
+    type: string
+  ScalarOutput:
+    type: integer
+  ComplexInput:
+    $id: "__my_id"
+    title: ComplexInput
+    type: object
+    additionalProperties: false
+    properties:
+      someSharedObj:
+        $ref: '#/types/SharedObject'
+      selfRef:
+        $ref: '#/types/ComplexInput'
+  ComplexOutput:
+    title: ComplexOutput
+    type: object
+    additionalProperties: false
+    properties:
+      someSharedObj:
+        $ref: '#/types/SharedObject'
+      selfRef:
+        $ref: '#/types/ComplexOutput'
+  SharedObject:
+    title: SharedObject
+    type: object
+    additionalProperties: false
+    properties:
+      someField:
+        type: integer
+  UnusedObject:
+    type: object
+    additionalProperties: false
+    properties:
+      someField:
+        type: integer
+  'Strange{Item}':
+    title: 'Strange{Item}'
+    type: object
+    additionalProperties: false
+    properties:
+      someField:
+        type: integer
+  StrangeItem:
+    title: StrangeItem
+    type: object
+    additionalProperties: false
+    properties:
+      someField:
+        type: integer
+  DateInput:
+    type: object
+    properties:
+      dateTime:
+        type: string
+        format: date-time
+      date:
+        type: string
+        format: date
+      time:
+        type: string
+        format: time

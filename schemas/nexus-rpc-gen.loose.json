@@ -1,0 +1,70 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema",
+  "$ref": "#/$defs/DefinitionFile",
+  "$defs": {
+    "DefinitionFile": {
+      "title": "Nexus RPC Definition Schema",
+      "description": "Definition for Nexus RPC services and operations",
+      "type": "object",
+      "required": [
+        "nexusrpc"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "nexusrpc": {
+          "type": "string",
+          "pattern": "^1\\.\\d+\\.\\d+$"
+        },
+        "services": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/Service"
+          }
+        },
+        "types": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/DataType"
+          }
+        }
+      }
+    },
+    "Service": {
+      "type": "object",
+      "required": [
+        "operations"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "description": {
+          "type": "string"
+        },
+        "operations": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/Operation"
+          }
+        }
+      }
+    },
+    "Operation": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "description": {
+          "type": "string"
+        },
+        "input": {
+          "$ref": "#/$defs/DataType"
+        },
+        "output": {
+          "$ref": "#/$defs/DataType"
+        }
+      }
+    },
+    "DataType": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  }
+}
