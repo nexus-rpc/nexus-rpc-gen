@@ -19,27 +19,27 @@ jobs:
             arch: x64
             bun_target: bun-linux-x64
             binary_name: nexus-rpc-gen
-            asset_name: nexus-rpc-gen-linux-x64
+            asset_name: nexus-rpc-gen_linux_x64
           - os: ubuntu-latest
             arch: arm64
             bun_target: bun-linux-arm64
             binary_name: nexus-rpc-gen
-            asset_name: nexus-rpc-gen-linux-arm64
+            asset_name: nexus-rpc-gen_linux_arm64
           - os: windows-latest # Bun currently only supports x64 on Windows
             arch: x64
             bun_target: bun-windows-x64
             binary_name: nexus-rpc-gen.exe
-            asset_name: nexus-rpc-gen-windows-x64
+            asset_name: nexus-rpc-gen_windows_x64
           - os: macos-latest
             arch: x64
             bun_target: bun-darwin-x64
             binary_name: nexus-rpc-gen
-            asset_name: nexus-rpc-gen-macos-x64
+            asset_name: nexus-rpc-gen_macos_x64
           - os: macos-latest
             arch: arm64
             bun_target: bun-darwin-arm64
             binary_name: nexus-rpc-gen
-            asset_name: nexus-rpc-gen-macos-arm64
+            asset_name: nexus-rpc-gen_macos_arm64
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout repository
@@ -89,8 +89,7 @@ jobs:
         with:
           name: ${{ matrix.asset_name }}
           path: ${{ matrix.asset_name }}.${{ runner.os == 'Windows' && 'zip' || 'tar.gz' }}
-          compression-level: 0 # Folder is already compressed
-          retention-days: 1
+          retention-days: 30
 
   smoke-test:
     needs: build-binary
@@ -100,43 +99,43 @@ jobs:
         include:
           - os: ubuntu-latest
             arch: x64
-            asset_name: nexus-rpc-gen-linux-x64
+            asset_name: nexus-rpc-gen_linux_x64
             binary_name: nexus-rpc-gen
             archive_ext: tar.gz
-            archive_path: nexus-rpc-gen-linux-x64.tar.gz
+            archive_path: nexus-rpc-gen_linux_x64.tar.gz
             extract_cmd: tar -xzf
-            binary_relpath: nexus-rpc-gen-linux-x64/nexus-rpc-gen
+            binary_relpath: nexus-rpc-gen_linux_x64/nexus-rpc-gen
           - os: ubuntu-24.04-arm
             arch: arm64
-            asset_name: nexus-rpc-gen-linux-arm64
+            asset_name: nexus-rpc-gen_linux_arm64
             binary_name: nexus-rpc-gen
             archive_ext: tar.gz
-            archive_path: nexus-rpc-gen-linux-arm64.tar.gz
+            archive_path: nexus-rpc-gen_linux_arm64.tar.gz
             extract_cmd: tar -xzf
-            binary_relpath: nexus-rpc-gen-linux-arm64/nexus-rpc-gen
+            binary_relpath: nexus-rpc-gen_linux_arm64/nexus-rpc-gen
           - os: windows-latest
             arch: x64
-            asset_name: nexus-rpc-gen-windows-x64
+            asset_name: nexus-rpc-gen_windows_x64
             binary_name: nexus-rpc-gen.exe
             archive_ext: zip
-            archive_path: nexus-rpc-gen-windows-x64.zip
-            binary_relpath: nexus-rpc-gen-windows-x64/nexus-rpc-gen.exe
+            archive_path: nexus-rpc-gen_windows_x64.zip
+            binary_relpath: nexus-rpc-gen_windows_x64/nexus-rpc-gen.exe
           - os: macos-latest
             arch: arm64
-            asset_name: nexus-rpc-gen-macos-arm64
+            asset_name: nexus-rpc-gen_macos_arm64
             binary_name: nexus-rpc-gen
             archive_ext: tar.gz
-            archive_path: nexus-rpc-gen-macos-arm64.tar.gz
+            archive_path: nexus-rpc-gen_macos_arm64.tar.gz
             extract_cmd: tar -xzf
-            binary_relpath: nexus-rpc-gen-macos-arm64/nexus-rpc-gen
+            binary_relpath: nexus-rpc-gen_macos_arm64/nexus-rpc-gen
           - os: macos-15-intel
             arch: x64
-            asset_name: nexus-rpc-gen-macos-x64
+            asset_name: nexus-rpc-gen_macos_x64
             binary_name: nexus-rpc-gen
             archive_ext: tar.gz
-            archive_path: nexus-rpc-gen-macos-x64.tar.gz
+            archive_path: nexus-rpc-gen_macos_x64.tar.gz
             extract_cmd: tar -xzf
-            binary_relpath: nexus-rpc-gen-macos-x64/nexus-rpc-gen
+            binary_relpath: nexus-rpc-gen_macos_x64/nexus-rpc-gen
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout repository
