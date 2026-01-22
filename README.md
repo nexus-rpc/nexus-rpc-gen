@@ -16,19 +16,19 @@ root directory:
 npm install && npm run build
 ```
 
-Then it it can be run via `node packages/nexus-rpc-gen/dist/index.js`. The rest of the document assumes this is in
+Then it it can be run via `node packages/cli/dist/index.js`. The rest of the document assumes this is in
 an executable shell file named `nexus-rpc-gen` for non-Windows:
 
 ```bash
 #!/usr/bin/env sh
-node packages/nexus-rpc-gen/dist/index.js "$@"
+node packages/cli/dist/index.js "$@"
 ```
 
 Or `nexus-rpc-gen.bat` for Windows:
 
 ```
 @echo off
-node packages/nexus-rpc-gen/dist/index.js %*
+node packages/cli/dist/index.js %*
 ```
 
 ## Usage
@@ -131,7 +131,7 @@ This will make all files with `.nexusrpc.yaml` have proper intellisense and vali
 ### Schema
 
 The definition file schemas are in [schemas](schemas). To adjust, alter the `nexus-rpc-gen.yml` file and run
-`npm run build:schema` from the `src` directory. May want to `npm run lint:fix` afterwards.
+`npm run build:schema` from the root directory. May want to `npm run lint:fix` afterwards.
 
 ### Tests
 
@@ -143,7 +143,7 @@ system dependencies must be installed to run them (ideally latest stable version
 * Java
 * Python and `uv`, with `uv` on the `PATH`
 
-That's in addition to nodejs needed to build. Then to test, this can be run from `src`:
+That's in addition to nodejs needed to build. Then to test, this can be run from the root directory:
 
 ```bash
 npm run build && npm run test

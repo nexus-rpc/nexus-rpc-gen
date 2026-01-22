@@ -3,8 +3,11 @@ import path from "path";
 import YAML from "yaml";
 import { spawnSync } from 'node:child_process';
 import { platform } from "node:os";
+import { fileURLToPath } from 'node:url';
 
-const workspaceRoot = path.resolve("../..");
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const workspaceRoot = path.resolve(__dirname, "../../..");
 const input = path.resolve(workspaceRoot, "schemas/nexus-rpc-gen.yml");
 const output = path.resolve(workspaceRoot, "schemas/nexus-rpc-gen.json");
 const outputLoose = path.resolve(workspaceRoot, "schemas/nexus-rpc-gen.loose.json");
