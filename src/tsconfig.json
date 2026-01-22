@@ -1,8 +1,0 @@
-{
-  "files": [],
-  "references": [
-    { "path": "packages/nexus-rpc-gen" },
-    { "path": "packages/nexus-rpc-gen-core" },
-    { "path": "packages/nexus-rpc-gen-tests" }
-  ]
-}

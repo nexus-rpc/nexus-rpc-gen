@@ -1,6 +1,6 @@
 import type { DefinitionSchema } from "./definition-schema.js";
 
-import jsonSchema from "../../../../schemas/nexus-rpc-gen.json" with { type: "json" };
+import jsonSchema from "../../../schemas/nexus-rpc-gen.json" with { type: "json" };
 import Ajv from "ajv";
 import addFormats from "ajv-formats";
 import yaml from "yaml";

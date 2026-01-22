@@ -10,25 +10,25 @@ incompatible ways until the generator is marked stable.
 ## Installation
 
 Since this is under active development, the project must be manually built with latest stable nodejs, e.g. from the
-`src` directory:
+root directory:
 
 ```bash
 npm install && npm run build
 ```
 
-Then it it can be run via `node src/packages/nexus-rpc-gen/dist/index.js`. The rest of the document assumes this is in
+Then it it can be run via `node packages/nexus-rpc-gen/dist/index.js`. The rest of the document assumes this is in
 an executable shell file named `nexus-rpc-gen` for non-Windows:
 
 ```bash
 #!/usr/bin/env sh
-node src/packages/nexus-rpc-gen/dist/index.js "$@"
+node packages/nexus-rpc-gen/dist/index.js "$@"
 ```
 
 Or `nexus-rpc-gen.bat` for Windows:
 
 ```
 @echo off
-node src/packages/nexus-rpc-gen/dist/index.js %*
+node packages/nexus-rpc-gen/dist/index.js %*
 ```
 
 ## Usage
@@ -39,7 +39,7 @@ To generate TypeScript code from a definition file:
 nexus-rpc-gen --lang ts --out-file my-out-file.ts my-service.nexusrpc.yaml
 ```
 
-This will generate a `my-out-file.ts` code file from the given YAML definition file. See [samples](samples) for what
+This will generate a `my-out-file.ts` code file from the given YAML definition file. See [examples](examples) for what
 output may look like in different languages.
 
 ## Definition File
@@ -135,7 +135,7 @@ The definition file schemas are in [schemas](schemas). To adjust, alter the `nex
 
 ### Tests
 
-Tests are in their own package at [src/packages/nexus-rpc-gen-tests](src/packages/nexus-rpc-gen-tests). The following
+Tests are in their own package at [packages/nexus-rpc-gen-tests](packages/nexus-rpc-gen-tests). The following
 system dependencies must be installed to run them (ideally latest stable versions):
 
 * .NET, with `dotnet` on the `PATH`

@@ -23,16 +23,13 @@ jobs:
           submodules: recursive
 
       - name: Build
-        working-directory: src
         run: npm ci && npm run build
 
       # Regenerating so we can check diff later to ensure it is up to date
       - name: Regenerate schema
-        working-directory: src
         run: npm run build:schema
 
       - name: Lint
-        working-directory: src
         run: npm run lint
 
       - name: Setup test prereq (.NET)
@@ -43,7 +40,7 @@ jobs:
       - name: Setup test prereq (Go)
         uses: actions/setup-go@v6
         with:
-          go-version-file: src/packages/nexus-rpc-gen-tests/languages/go/go.mod
+          go-version-file: packages/tests/languages/go/go.mod
         
       - name: Setup test prereq (Java)
         uses: actions/setup-java@v5
@@ -60,10 +57,8 @@ jobs:
         uses: astral-sh/setup-uv@v7
 
       - name: Test
-        working-directory: src
         run: npm run test
 
       - name: Diff to ensure everything was committed properly
-        working-directory: src
         # We have to lint:fix first to update generated TS code
         run: npm run lint:fix && git diff --exit-code

@@ -6,10 +6,10 @@
   "type": "module",
   "scripts": {
     "build": "tsc --build",
-    "cli": "npm run build && node packages/nexus-rpc-gen/dist/index.js",
-    "build:schema": "npm run build:schema --prefix packages/nexus-rpc-gen",
-    "lint": "eslint packages/*/src/** packages/nexus-rpc-gen-tests/languages/ts/src/**",
-    "lint:fix": "eslint --fix packages/*/src/** packages/nexus-rpc-gen-tests/languages/ts/src/**",
+    "cli": "npm run build && node packages/cli/dist/index.js",
+    "build:schema": "npm run build:schema --prefix packages/cli",
+    "lint": "eslint packages/*/src/** packages/tests/languages/ts/src/**",
+    "lint:fix": "eslint --fix packages/*/src/** packages/tests/languages/ts/src/**",
     "test": "npm test --workspaces --if-present"
   },
   "devDependencies": {

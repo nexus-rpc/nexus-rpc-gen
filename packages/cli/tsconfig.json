@@ -1,6 +1,6 @@
 {
   "extends": "../../tsconfig.base.json",
-  "references": [{ "path": "../nexus-rpc-gen-core" }],
+  "references": [{ "path": "../core" }],
   "include": ["./src/**/*.ts"],
   "compilerOptions": {
     "outDir": "./dist",

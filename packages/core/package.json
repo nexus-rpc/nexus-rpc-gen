@@ -12,9 +12,9 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/nexus-rpc/nexus-rpc-gen.git",
-    "directory": "packages/nexus-rpc-gen-core"
+    "directory": "packages/core"
   },
-  "homepage": "https://github.com/nexus-rpc/nexus-rpc-gen/tree/main/packages/nexus-rpc-gen-core",
+  "homepage": "https://github.com/nexus-rpc/nexus-rpc-gen/tree/main/packages/core",
   "scripts": {
   },
   "dependencies": {
