@@ -24,16 +24,11 @@ jobs:
             bun_target: bun-linux-arm64
             binary_name: nexus-rpc-gen
             asset_name: nexus-rpc-gen-linux-arm64
-          - os: windows-latest
+          - os: windows-latest # Bun currently only supports x64 on Windows
             arch: x64
             bun_target: bun-windows-x64
             binary_name: nexus-rpc-gen.exe
             asset_name: nexus-rpc-gen-windows-x64.exe
-          - os: windows-latest
-            arch: arm64
-            bun_target: bun-windows-arm64
-            binary_name: nexus-rpc-gen.exe
-            asset_name: nexus-rpc-gen-windows-arm64.exe
           - os: macos-latest
             arch: x64
             bun_target: bun-darwin-x64
@@ -58,24 +53,62 @@ jobs:
         working-directory: src
         run: bun install && bun run build
 
-      - name: Build binary with Bun (Unix)
+      - name: Build binary with Bun
+        run: |
+          mkdir -p bin
+          cd src
+          bun build packages/nexus-rpc-gen/dist/index.js --compile --target=${{ matrix.bun_target }} --outfile=../bin/${{ matrix.binary_name }}
+
+      - name: Smoke test binary (Unix)
+        # Skip smoke test on cross-architecture builds on Unix
+        if: runner.os != 'Windows' && (matrix.arch == 'x64' || (runner.os == 'macOS' && matrix.arch == 'arm64'))
+        run: |
+          mkdir -p smoke-test
+          ./bin/${{ matrix.binary_name }} --lang ts --out-file smoke-test/user-service.ts samples/user-service/user-service.nexusrpc.yaml
+          if [ ! -f smoke-test/user-service.ts ]; then
+            echo "Binary failed to generate output"
+            exit 1
+          fi
+          echo "Binary smoke test passed!"
+
+      - name: Smoke test binary (Windows)
+        if: runner.os == 'Windows' && matrix.arch == 'x64'
+        run: |
+          mkdir -p smoke-test
+          .\bin\${{ matrix.binary_name }} --lang ts --out-file smoke-test/user-service.ts samples/user-service/user-service.nexusrpc.yaml
+          if (-not (Test-Path smoke-test/user-service.ts)) {
+            Write-Error "Binary failed to generate output"
+            exit 1
+          }
+          Write-Output "Binary smoke test passed!"
+
+      - name: Package binary (Unix)
         if: runner.os != 'Windows'
         run: |
-          mkdir -p bin
-          cd src
-          bun build packages/nexus-rpc-gen/dist/index.js --compile --target=${{ matrix.bun_target }} --outfile=../bin/${{ matrix.binary_name }}
-          chmod +x ../bin/${{ matrix.binary_name }}
+          mkdir -p package/${{ matrix.asset_name }}
+          cp bin/${{ matrix.binary_name }} package/${{ matrix.asset_name }}/nexus-rpc-gen
+          cp LICENSE package/${{ matrix.asset_name }}/
+          cp README.md package/${{ matrix.asset_name }}/
+          cd package
+          tar -czf ${{ matrix.asset_name }}.tar.gz ${{ matrix.asset_name }}/
+          cd ..
+          mv package/${{ matrix.asset_name }}.tar.gz .
 
-      - name: Build binary with Bun (Windows)
+      - name: Package binary (Windows)
         if: runner.os == 'Windows'
         run: |
-          mkdir -p bin
-          cd src
-          bun build packages/nexus-rpc-gen/dist/index.js --compile --target=${{ matrix.bun_target }} --outfile=../bin/${{ matrix.binary_name }}
+          mkdir -p package\${{ matrix.asset_name }}
+          copy bin\${{ matrix.binary_name }} package\${{ matrix.asset_name }}\nexus-rpc-gen.exe
+          copy LICENSE package\${{ matrix.asset_name }}\
+          copy README.md package\${{ matrix.asset_name }}\
+          cd package
+          powershell -Command "Compress-Archive -Path ${{ matrix.asset_name }} -DestinationPath ${{ matrix.asset_name }}.zip"
+          cd ..
+          move package\${{ matrix.asset_name }}.zip .
 
-      - name: Upload binary artifact
+      - name: Upload packaged binary
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.asset_name }}
-          path: bin/${{ matrix.binary_name }}
+          path: ${{ matrix.asset_name }}.${{ runner.os == 'Windows' && 'zip' || 'tar.gz' }}
           retention-days: 90
