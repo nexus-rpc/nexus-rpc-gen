@@ -8,7 +8,7 @@
   },
   "scripts": {
     "build": "tsc --build",
-    "test": "node --test dist/tests.js"
+    "test": "tsx src/tests.ts"
   },
   "dependencies": {
     "nexus-rpc": "^0.0.1"

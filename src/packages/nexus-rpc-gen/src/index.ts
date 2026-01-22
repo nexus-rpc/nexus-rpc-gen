@@ -1,3 +1,4 @@
+import { pathToFileURL } from "node:url";
 import commandLineArgs, { type OptionDefinition } from "command-line-args";
 import { languageNamed, type LanguageName } from "quicktype-core";
 import {
@@ -9,7 +10,7 @@ import {
   PythonLanguageWithNexus,
   TypeScriptLanguageWithNexus,
   type GeneratorOptions,
-} from "nexus-rpc-gen-core";
+} from "@nexus-rpc/gen-core";
 import getUsage, { type Section } from "command-line-usage";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -174,18 +175,15 @@ function printUsage() {
   console.log(getUsage(sections));
 }
 
-// TODO(cretz): ESM equivalent
-// if (require.main !== module) {
-//   throw new Error("Cannot use this as a module");
-// }
-
-try {
-  await main(process.argv.slice(2));
-} catch (error) {
-  if (process.env.NEXUS_IDL_DEBUG) {
-    console.error(error);
-  } else {
-    console.error(`${error}`);
+if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+  try {
+    await main(process.argv.slice(2));
+  } catch (error) {
+    if (process.env.NEXUS_IDL_DEBUG) {
+      console.error(error);
+    } else {
+      console.error(`${error}`);
+    }
+    process.exit(1);
   }
-  process.exit(1);
 }

@@ -13,22 +13,22 @@ Since this is under active development, the project must be manually built with 
 `src` directory:
 
 ```bash
-npm install && npm run build
+pnpm install && pnpm run build
 ```
 
-Then it it can be run via `node src/packages/nexus-rpc-gen/dist/index.js`. The rest of the document assumes this is in
+Then it it can be run via `pnpm tsx src/packages/nexus-rpc-gen/src/index.ts`. The rest of the document assumes this is in
 an executable shell file named `nexus-rpc-gen` for non-Windows:
 
 ```bash
 #!/usr/bin/env sh
-node src/packages/nexus-rpc-gen/dist/index.js "$@"
+pnpm tsx src/packages/nexus-rpc-gen/src/index.ts "$@"
 ```
 
 Or `nexus-rpc-gen.bat` for Windows:
 
 ```
 @echo off
-node src/packages/nexus-rpc-gen/dist/index.js %*
+pnpm tsx src/packages/nexus-rpc-gen/src/index.ts %*
 ```
 
 ## Usage
@@ -131,7 +131,7 @@ This will make all files with `.nexusrpc.yaml` have proper intellisense and vali
 ### Schema
 
 The definition file schemas are in [schemas](schemas). To adjust, alter the `nexus-rpc-gen.yml` file and run
-`npm run build:schema` from the `src` directory. May want to `npm run lint:fix` afterwards.
+`pnpm run build:schema` from the `src` directory. May want to `pnpm run lint:fix` afterwards.
 
 ### Tests
 
@@ -146,5 +146,5 @@ system dependencies must be installed to run them (ideally latest stable version
 That's in addition to nodejs needed to build. Then to test, this can be run from `src`:
 
 ```bash
-npm run build && npm run test
+pnpm run build && pnpm run test
 ```
