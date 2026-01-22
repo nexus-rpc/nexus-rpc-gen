@@ -72,7 +72,7 @@ services:
       specificTypesForSomeLangs:
         input:
           $javaRef: com.example.MyExistingType
-          $goRef: github.com/nexus-rpc-gen/packages/nexus-rpc-gen-tests/languages/go/services/types.MyExistingType
+          $goRef: github.com/nexus-rpc-gen/packages/tests/languages/go/services/types.MyExistingType
           $pythonRef: services.types.MyExistingType
           $ref: '#/types/ComplexInput'
         output:

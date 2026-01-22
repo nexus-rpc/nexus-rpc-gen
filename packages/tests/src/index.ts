@@ -9,8 +9,8 @@ test("C#", async () => {
       "--lang",
       "cs",
       "--out-dir",
-      "packages/nexus-rpc-gen-tests/languages/cs/NexusServices",
-      "packages/nexus-rpc-gen-tests/definitions/kitchen-sink.nexusrpc.yaml",
+      "packages/tests/languages/cs/NexusServices",
+      "packages/tests/definitions/kitchen-sink.nexusrpc.yaml",
     )
   ).assertSuccess();
   // Run C# test suite
@@ -32,8 +32,8 @@ test("Go", async () => {
       "--package",
       "services",
       "--out-dir",
-      "packages/nexus-rpc-gen-tests/languages/go/services",
-      "packages/nexus-rpc-gen-tests/definitions/kitchen-sink.nexusrpc.yaml",
+      "packages/tests/languages/go/services",
+      "packages/tests/definitions/kitchen-sink.nexusrpc.yaml",
     )
   ).assertSuccess();
   // Run Go test suite
@@ -52,8 +52,8 @@ test("Java", async () => {
       "--lang",
       "java",
       "--out-dir",
-      "packages/nexus-rpc-gen-tests/languages/java/src/main/java",
-      "packages/nexus-rpc-gen-tests/definitions/kitchen-sink.nexusrpc.yaml",
+      "packages/tests/languages/java/src/main/java",
+      "packages/tests/definitions/kitchen-sink.nexusrpc.yaml",
     )
   ).assertSuccess();
   // Run Java test suite
@@ -74,8 +74,8 @@ test("Python", async () => {
       "--lang",
       "py",
       "--out-dir",
-      "packages/nexus-rpc-gen-tests/languages/py/services",
-      "packages/nexus-rpc-gen-tests/definitions/kitchen-sink.nexusrpc.yaml",
+      "packages/tests/languages/py/services",
+      "packages/tests/definitions/kitchen-sink.nexusrpc.yaml",
     )
   ).assertSuccess();
 
@@ -107,8 +107,8 @@ test("TypeScript", async () => {
       "--lang",
       "ts",
       "--out-dir",
-      "packages/nexus-rpc-gen-tests/languages/ts/src/services",
-      "packages/nexus-rpc-gen-tests/definitions/kitchen-sink.nexusrpc.yaml",
+      "packages/tests/languages/ts/src/services",
+      "packages/tests/definitions/kitchen-sink.nexusrpc.yaml",
     )
   ).assertSuccess();
 

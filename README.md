@@ -135,7 +135,7 @@ The definition file schemas are in [schemas](schemas). To adjust, alter the `nex
 
 ### Tests
 
-Tests are in their own package at [packages/nexus-rpc-gen-tests](packages/nexus-rpc-gen-tests). The following
+Tests are in their own package at [packages/tests](packages/tests). The following
 system dependencies must be installed to run them (ideally latest stable versions):
 
 * .NET, with `dotnet` on the `PATH`
