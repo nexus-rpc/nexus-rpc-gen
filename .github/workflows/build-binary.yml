@@ -110,8 +110,8 @@ jobs:
             asset_name: nexus-rpc-gen-windows-x64
             binary_name: nexus-rpc-gen.exe
             archive_ext: zip
-            archive_path: nexus-rpc-gen-windows-x64.exe.zip
-            binary_relpath: nexus-rpc-gen-windows-x64.exe/nexus-rpc-gen.exe
+            archive_path: nexus-rpc-gen-windows-x64.zip
+            binary_relpath: nexus-rpc-gen-windows-x64/nexus-rpc-gen.exe
           - os: macos-latest
             arch: arm64
             asset_name: nexus-rpc-gen-macos-arm64
