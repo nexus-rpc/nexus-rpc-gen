@@ -89,7 +89,8 @@ jobs:
         with:
           name: ${{ matrix.asset_name }}
           path: ${{ matrix.asset_name }}.${{ runner.os == 'Windows' && 'zip' || 'tar.gz' }}
-          retention-days: 90
+          compression-level: 0 # Folder is already compressed
+          retention-days: 1
 
   smoke-test:
     needs: build-binary
@@ -105,6 +106,14 @@ jobs:
             archive_path: nexus-rpc-gen-linux-x64.tar.gz
             extract_cmd: tar -xzf
             binary_relpath: nexus-rpc-gen-linux-x64/nexus-rpc-gen
+          - os: ubuntu-24.04-arm
+            arch: arm64
+            asset_name: nexus-rpc-gen-linux-arm64
+            binary_name: nexus-rpc-gen
+            archive_ext: tar.gz
+            archive_path: nexus-rpc-gen-linux-arm64.tar.gz
+            extract_cmd: tar -xzf
+            binary_relpath: nexus-rpc-gen-linux-arm64/nexus-rpc-gen
           - os: windows-latest
             arch: x64
             asset_name: nexus-rpc-gen-windows-x64
@@ -120,6 +129,14 @@ jobs:
             archive_path: nexus-rpc-gen-macos-arm64.tar.gz
             extract_cmd: tar -xzf
             binary_relpath: nexus-rpc-gen-macos-arm64/nexus-rpc-gen
+          - os: macos-15-intel
+            arch: x64
+            asset_name: nexus-rpc-gen-macos-x64
+            binary_name: nexus-rpc-gen
+            archive_ext: tar.gz
+            archive_path: nexus-rpc-gen-macos-x64.tar.gz
+            extract_cmd: tar -xzf
+            binary_relpath: nexus-rpc-gen-macos-x64/nexus-rpc-gen
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout repository
