@@ -1,6 +1,7 @@
 name: Build Binary
 
 on:
+  pull_request:
   push:
     branches:
       - main
@@ -28,7 +29,7 @@ jobs:
             arch: x64
             bun_target: bun-windows-x64
             binary_name: nexus-rpc-gen.exe
-            asset_name: nexus-rpc-gen-windows-x64.exe
+            asset_name: nexus-rpc-gen-windows-x64
           - os: macos-latest
             arch: x64
             bun_target: bun-darwin-x64
@@ -58,29 +59,6 @@ jobs:
           mkdir -p bin
           cd src
           bun build packages/nexus-rpc-gen/dist/index.js --compile --target=${{ matrix.bun_target }} --outfile=../bin/${{ matrix.binary_name }}
-
-      - name: Smoke test binary (Unix)
-        # Skip smoke test on cross-architecture builds on Unix
-        if: runner.os != 'Windows' && (matrix.arch == 'x64' || (runner.os == 'macOS' && matrix.arch == 'arm64'))
-        run: |
-          mkdir -p smoke-test
-          ./bin/${{ matrix.binary_name }} --lang ts --out-file smoke-test/user-service.ts samples/user-service/user-service.nexusrpc.yaml
-          if [ ! -f smoke-test/user-service.ts ]; then
-            echo "Binary failed to generate output"
-            exit 1
-          fi
-          echo "Binary smoke test passed!"
-
-      - name: Smoke test binary (Windows)
-        if: runner.os == 'Windows' && matrix.arch == 'x64'
-        run: |
-          mkdir -p smoke-test
-          .\bin\${{ matrix.binary_name }} --lang ts --out-file smoke-test/user-service.ts samples/user-service/user-service.nexusrpc.yaml
-          if (-not (Test-Path smoke-test/user-service.ts)) {
-            Write-Error "Binary failed to generate output"
-            exit 1
-          }
-          Write-Output "Binary smoke test passed!"
 
       - name: Package binary (Unix)
         if: runner.os != 'Windows'
@@ -112,3 +90,73 @@ jobs:
           name: ${{ matrix.asset_name }}
           path: ${{ matrix.asset_name }}.${{ runner.os == 'Windows' && 'zip' || 'tar.gz' }}
           retention-days: 90
+
+  smoke-test:
+    needs: build-binary
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            arch: x64
+            asset_name: nexus-rpc-gen-linux-x64
+            binary_name: nexus-rpc-gen
+            archive_ext: tar.gz
+            archive_path: nexus-rpc-gen-linux-x64.tar.gz
+            extract_cmd: tar -xzf
+            binary_relpath: nexus-rpc-gen-linux-x64/nexus-rpc-gen
+          - os: windows-latest
+            arch: x64
+            asset_name: nexus-rpc-gen-windows-x64
+            binary_name: nexus-rpc-gen.exe
+            archive_ext: zip
+            archive_path: nexus-rpc-gen-windows-x64.exe.zip
+            binary_relpath: nexus-rpc-gen-windows-x64.exe/nexus-rpc-gen.exe
+          - os: macos-latest
+            arch: arm64
+            asset_name: nexus-rpc-gen-macos-arm64
+            binary_name: nexus-rpc-gen
+            archive_ext: tar.gz
+            archive_path: nexus-rpc-gen-macos-arm64.tar.gz
+            extract_cmd: tar -xzf
+            binary_relpath: nexus-rpc-gen-macos-arm64/nexus-rpc-gen
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - name: Download packaged binary
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ matrix.asset_name }}
+          path: artifacts
+
+      - name: Extract artifact (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          cd artifacts
+          ${{ matrix.extract_cmd }} ${{ matrix.archive_path }}
+
+      - name: Extract artifact (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          cd artifacts
+          powershell -Command "Expand-Archive -Path ${{ matrix.archive_path }} -DestinationPath ."
+
+      - name: Smoke test binary (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          mkdir -p smoke-test
+          artifacts/${{ matrix.binary_relpath }} --lang ts --out-file smoke-test/user-service.ts samples/user-service/user-service.nexusrpc.yaml
+          test -f smoke-test/user-service.ts
+
+      - name: Smoke test binary (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          mkdir -p smoke-test
+          ./artifacts/${{ matrix.binary_relpath }} --lang ts --out-file smoke-test/user-service.ts samples/user-service/user-service.nexusrpc.yaml
+          if (-not (Test-Path smoke-test/user-service.ts)) { exit 1 }
