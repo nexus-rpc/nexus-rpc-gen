@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nexus-rpc-gen/packages/nexus-rpc-gen-tests/languages/go/services"
+	"github.com/nexus-rpc-gen/packages/tests/languages/go/services"
 	"github.com/nexus-rpc/sdk-go/nexus"
 	"github.com/stretchr/testify/require"
 )

@@ -1,4 +1,4 @@
-module github.com/nexus-rpc-gen/packages/nexus-rpc-gen-tests/languages/go
+module github.com/nexus-rpc-gen/packages/tests/languages/go
 
 go 1.25.3
 

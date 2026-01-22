@@ -2,21 +2,23 @@
 
 package services
 
-import "net/http"
-import "time"
+import (
+	"net/http"
+	"time"
 
-import "github.com/nexus-rpc-gen/packages/nexus-rpc-gen-tests/languages/go/services/types"
-import "github.com/nexus-rpc/sdk-go/nexus"
+	"github.com/nexus-rpc-gen/packages/tests/languages/go/services/types"
+	"github.com/nexus-rpc/sdk-go/nexus"
+)
 
 // A service for all types of operations
 var KitchenSinkService = struct {
-	ServiceName                           string
+	ServiceName string
 	// Counts the characters in the string
-	ScalarArgScalarResult                 nexus.OperationReference[KitchenSinkServiceScalarArgScalarResultInput, KitchenSinkServiceScalarArgScalarResultOutput]
-	// Counts the characters in a string  
-	ComplexArgComplexResultInline         nexus.OperationReference[KitchenSinkServiceComplexArgComplexResultInlineInput, KitchenSinkServiceComplexArgComplexResultInlineOutput]
-	ScalarArgScalarResultExternal         nexus.OperationReference[ScalarInput, ScalarOutput]
-	ComplexArgComplexResultExternal       nexus.OperationReference[ComplexInput, ComplexOutput]
+	ScalarArgScalarResult nexus.OperationReference[KitchenSinkServiceScalarArgScalarResultInput, KitchenSinkServiceScalarArgScalarResultOutput]
+	// Counts the characters in a string
+	ComplexArgComplexResultInline   nexus.OperationReference[KitchenSinkServiceComplexArgComplexResultInlineInput, KitchenSinkServiceComplexArgComplexResultInlineOutput]
+	ScalarArgScalarResultExternal   nexus.OperationReference[ScalarInput, ScalarOutput]
+	ComplexArgComplexResultExternal nexus.OperationReference[ComplexInput, ComplexOutput]
 }{
 	ServiceName:                     "KitchenSinkService",
 	ScalarArgScalarResult:           nexus.NewOperationReference[KitchenSinkServiceScalarArgScalarResultInput, KitchenSinkServiceScalarArgScalarResultOutput]("scalarArgScalarResult"),
@@ -77,14 +79,14 @@ type ScalarOutput int64
 
 // Input type
 type KitchenSinkServiceComplexArgComplexResultInlineInput struct {
-	// String to count       
-	String            string `json:"string,omitempty"`
+	// String to count
+	String string `json:"string,omitempty"`
 }
 
 // Output type
 type KitchenSinkServiceComplexArgComplexResultInlineOutput struct {
-	// Count of characters      
-	CharacterCount        int64 `json:"characterCount,omitempty"`
+	// Count of characters
+	CharacterCount int64 `json:"characterCount,omitempty"`
 }
 
 type ComplexInput struct {
