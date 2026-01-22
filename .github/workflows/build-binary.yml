@@ -1,0 +1,81 @@
+name: Build Binary
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  build-binary:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            arch: x64
+            bun_target: bun-linux-x64
+            binary_name: nexus-rpc-gen
+            asset_name: nexus-rpc-gen-linux-x64
+          - os: ubuntu-latest
+            arch: arm64
+            bun_target: bun-linux-arm64
+            binary_name: nexus-rpc-gen
+            asset_name: nexus-rpc-gen-linux-arm64
+          - os: windows-latest
+            arch: x64
+            bun_target: bun-windows-x64
+            binary_name: nexus-rpc-gen.exe
+            asset_name: nexus-rpc-gen-windows-x64.exe
+          - os: windows-latest
+            arch: arm64
+            bun_target: bun-windows-arm64
+            binary_name: nexus-rpc-gen.exe
+            asset_name: nexus-rpc-gen-windows-arm64.exe
+          - os: macos-latest
+            arch: x64
+            bun_target: bun-darwin-x64
+            binary_name: nexus-rpc-gen
+            asset_name: nexus-rpc-gen-macos-x64
+          - os: macos-latest
+            arch: arm64
+            bun_target: bun-darwin-arm64
+            binary_name: nexus-rpc-gen
+            asset_name: nexus-rpc-gen-macos-arm64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+
+      - name: Install dependencies and build
+        working-directory: src
+        run: bun install && bun run build
+
+      - name: Build binary with Bun (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          mkdir -p bin
+          cd src
+          bun build packages/nexus-rpc-gen/dist/index.js --compile --target=${{ matrix.bun_target }} --outfile=../bin/${{ matrix.binary_name }}
+          chmod +x ../bin/${{ matrix.binary_name }}
+
+      - name: Build binary with Bun (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          mkdir -p bin
+          cd src
+          bun build packages/nexus-rpc-gen/dist/index.js --compile --target=${{ matrix.bun_target }} --outfile=../bin/${{ matrix.binary_name }}
+
+      - name: Upload binary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.asset_name }}
+          path: bin/${{ matrix.binary_name }}
+          retention-days: 90

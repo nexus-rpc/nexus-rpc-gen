@@ -148,3 +148,13 @@ That's in addition to nodejs needed to build. Then to test, this can be run from
 ```bash
 pnpm run build && pnpm run test
 ```
+
+### Build Single Binary
+
+`nexus-rpc-gen` can also be packaged as a single binary using [Bun](https://bun.com/docs/bundler/executables).
+
+```bash
+pnpm install && bun build packages/nexus-rpc-gen/src/index.ts --compile --outfile bin/nexus-rpc-gen
+```
+
+The resulting single binary will be in `src/bin/nexus-rpc-gen`.
