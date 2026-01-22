@@ -25,13 +25,20 @@ fs.writeFileSync(outputLoose, JSON.stringify(data, null, 2) + "\n");
 
 // Generate quicktype code
 const tsFilePath = path.resolve(workspaceRoot, "packages/core/src/definition-schema.ts");
+const schemaPath = path.resolve(workspaceRoot, "schemas/nexus-rpc-gen.loose.json");
 const cmd = path.resolve(workspaceRoot,"node_modules/.bin/quicktype" + (platform() === "win32" ? ".cmd" : ""));
+
+// Use relative paths to avoid Windows drive letter issue with quicktype
+// See: https://github.com/glideapps/quicktype/issues/1113
+const relativeOut = path.relative(process.cwd(), tsFilePath);
+const relativeSchema = path.relative(process.cwd(), schemaPath);
+
 const args = [
   "--src-lang", "schema",
   "--lang", "typescript",
   "--just-types",
-  "--out", tsFilePath,
-  path.resolve(workspaceRoot, "schemas/nexus-rpc-gen.loose.json")
+  "--out", relativeOut,
+  relativeSchema
 ];
 console.log(`Running '${cmd}' with args: ${args.join(" ")}`);
 const result = spawnSync(cmd, args, { stdio: "inherit", shell: true });
