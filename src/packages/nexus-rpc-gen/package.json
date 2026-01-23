@@ -37,6 +37,7 @@
     "tsx": "^4.21.0"
   },
   "files": [
+    "README.md",
     "src",
     "dist"
   ],

@@ -26,6 +26,7 @@
     "yaml": "^2.8.1"
   },
   "files": [
+    "README.md",
     "src",
     "dist"
   ],
