@@ -28,7 +28,8 @@
   "files": [
     "README.md",
     "src",
-    "dist"
+    "dist",
+    "schemas"
   ],
   "publishConfig": {
     "access": "public"
