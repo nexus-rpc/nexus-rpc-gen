@@ -63,6 +63,9 @@ importers:
       command-line-usage:
         specifier: ^7.0.3
         version: 7.0.3
+      es-main:
+        specifier: ^1.4.0
+        version: 1.4.0
       quicktype-core:
         specifier: ^23.2.6
         version: 23.2.6
@@ -649,6 +652,9 @@ packages:
 
   emoji-regex@8.0.0:
     resolution: {integrity: sha512-MSjYzcWNOA0ewAHpz0MxpYFvwg6yjy1NG3xteoqz644VCo/RPgnr1/GGt+ic3iJTzQ8Eu3TdM14SawnVUmGE6A==}
+
+  es-main@1.4.0:
+    resolution: {integrity: sha512-/rYhbfGK/1E6L7TcoUqmrWbSnOlMoxahiZInSYKbhIZ4/dbclHtXEcrViu4Az9IzYNBT8LcXpPszfS47zbGpwA==}
 
   esbuild@0.27.2:
     resolution: {integrity: sha512-HyNQImnsOC7X9PMNaCIeAm4ISCQXs5a5YasTXVliKv4uuBo1dKrG0A+uQS8M5eXjVMnLg3WgXaKvprHlFJQffw==}
@@ -1786,6 +1792,8 @@ snapshots:
   electron-to-chromium@1.5.277: {}
 
   emoji-regex@8.0.0: {}
+
+  es-main@1.4.0: {}
 
   esbuild@0.27.2:
     optionalDependencies:
