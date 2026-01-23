@@ -1,23 +1,25 @@
 {
   "private": true,
-  "workspaces": [
-    "packages/*"
-  ],
   "type": "module",
   "scripts": {
     "build": "tsc --build",
-    "cli": "npm run build && node packages/nexus-rpc-gen/dist/index.js",
-    "build:schema": "npm run build:schema --prefix packages/nexus-rpc-gen",
+    "cli": "tsx packages/nexus-rpc-gen/src/index.ts",
+    "build:schema": "pnpm --filter nexus-rpc-gen run build:schema",
     "lint": "eslint packages/*/src/** packages/nexus-rpc-gen-tests/languages/ts/src/**",
     "lint:fix": "eslint --fix packages/*/src/** packages/nexus-rpc-gen-tests/languages/ts/src/**",
-    "test": "npm test --workspaces --if-present"
+    "test": "pnpm -r run test"
   },
   "devDependencies": {
     "@eslint/js": "^9.37.0",
+    "@tsconfig/node18": "^18.0.0",
+    "@types/node": "^18.0.0",
+    "@types/wordwrap": "^1.0.3",
     "eslint": "^9.37.0",
     "eslint-plugin-prettier": "^5.5.4",
     "eslint-plugin-security": "^3.0.1",
     "eslint-plugin-unicorn": "^61.0.2",
+    "globals": "^17.0.0",
+    "tsx": "^4.21.0",
     "typescript-eslint": "^8.46.0",
     "yaml": "^2.8.1"
   },
