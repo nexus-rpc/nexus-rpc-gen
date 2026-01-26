@@ -55,7 +55,4 @@ fs.writeFileSync(
   `/* eslint-disable */\n// ⚠️ This file is generated. Do not edit manually.\n\n${fs.readFileSync(tsFilePath, 'utf8')}`,
   'utf8');
 
-// Copy generated schema to the core package
-fs.copyFileSync(output, path.resolve(workspaceRoot, "src/packages/nexus-rpc-gen-core/schemas/nexus-rpc-gen.json"));
-
 console.log(`Converted ${input} to ${output} and generated code`);

@@ -29,7 +29,7 @@
     "README.md",
     "src",
     "dist",
-    "schemas"
+    "schemas/nexus-rpc-gen.json"
   ],
   "publishConfig": {
     "access": "public"
