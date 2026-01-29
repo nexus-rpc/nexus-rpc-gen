@@ -52,7 +52,7 @@ jobs:
 
       - name: Install dependencies and build
         working-directory: src
-        run: bun install && bun run build
+        run: pnpm install --frozen-lockfile  && pnpm run build
 
       - name: Build binary with Bun
         run: |
