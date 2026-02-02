@@ -1,12 +1,13 @@
 {
   "name": "nexus-rpc-gen",
-  "version": "0.1.0",
+  "version": "0.1.0-alpha1",
   "description": "Nexus code generation",
   "author": "Temporal Technologies Inc. <sdk@temporal.io>",
   "license": "MIT",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "bin": "dist/index.js",
   "engines": {
     "node": ">= 18.0.0"
   },
@@ -27,6 +28,7 @@
     "arg": "^5.0.2",
     "command-line-args": "^6.0.1",
     "command-line-usage": "^7.0.3",
+    "es-main": "^1.4.0",
     "quicktype-core": "^23.2.6"
   },
   "devDependencies": {

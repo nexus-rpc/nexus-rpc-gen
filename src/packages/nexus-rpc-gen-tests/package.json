@@ -16,5 +16,6 @@
   "devDependencies": {
     "@types/node": "^24.7.0",
     "@types/wordwrap": "^1.0.3"
-  }
+  },
+  "version": "0.1.0-alpha1"
 }
