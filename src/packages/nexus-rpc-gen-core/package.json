@@ -1,6 +1,6 @@
 {
   "name": "@nexus-rpc/gen-core",
-  "version": "0.1.0",
+  "version": "0.1.0-alpha1",
   "description": "Nexus code generation (core library)",
   "author": "Temporal Technologies Inc. <sdk@temporal.io>",
   "license": "MIT",
@@ -16,8 +16,7 @@
     "directory": "src/packages/nexus-rpc-gen-core"
   },
   "homepage": "https://github.com/nexus-rpc/nexus-rpc-gen/tree/main/src/packages/nexus-rpc-gen-core",
-  "scripts": {
-  },
+  "scripts": {},
   "dependencies": {
     "ajv": "^8.17.1",
     "ajv-formats": "^3.0.1",
@@ -28,7 +27,8 @@
   "files": [
     "README.md",
     "src",
-    "dist"
+    "dist",
+    "schemas/nexus-rpc-gen.json"
   ],
   "publishConfig": {
     "access": "public"

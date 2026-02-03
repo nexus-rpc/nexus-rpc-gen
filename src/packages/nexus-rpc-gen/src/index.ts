@@ -1,6 +1,9 @@
+#!/usr/bin/env node
+
 import { pathToFileURL } from "node:url";
 import commandLineArgs, { type OptionDefinition } from "command-line-args";
 import { languageNamed, type LanguageName } from "quicktype-core";
+import esMain from "es-main";
 import {
   CSharpLanguageWithNexus,
   Generator,
@@ -175,7 +178,10 @@ function printUsage() {
   console.log(getUsage(sections));
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+// Node 22.18+ and 24.2+ provides `import.meta.main`, which deprcates the need for
+// this npm library. Bun and Deno have had that API for a long time already. But until
+// we're ready to drop older versions of Node, we need this library to support it.
+if (esMain(import.meta)) {
   try {
     await main(process.argv.slice(2));
   } catch (error) {
