@@ -18,7 +18,7 @@
   "homepage": "https://github.com/nexus-rpc/nexus-rpc-gen/tree/main/src/packages/nexus-rpc-gen-core",
   "scripts": {},
   "dependencies": {
-    "ajv": "^8.17.1",
+    "ajv": "^8.18.0",
     "ajv-formats": "^3.0.1",
     "quicktype-core": "^23.2.6",
     "wordwrap": "^1.0.0",
