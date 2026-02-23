@@ -1,0 +1,184 @@
+name: Build Binary
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  build-binary:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            arch: x64
+            bun_target: bun-linux-x64
+            binary_name: nexus-rpc-gen
+            asset_name: nexus-rpc-gen_linux_x64
+          - os: ubuntu-latest
+            arch: arm64
+            bun_target: bun-linux-arm64
+            binary_name: nexus-rpc-gen
+            asset_name: nexus-rpc-gen_linux_arm64
+          - os: windows-latest # Bun currently only supports x64 on Windows
+            arch: x64
+            bun_target: bun-windows-x64
+            binary_name: nexus-rpc-gen.exe
+            asset_name: nexus-rpc-gen_windows_x64
+          - os: macos-latest
+            arch: x64
+            bun_target: bun-darwin-x64
+            binary_name: nexus-rpc-gen
+            asset_name: nexus-rpc-gen_macos_x64
+          - os: macos-latest
+            arch: arm64
+            bun_target: bun-darwin-arm64
+            binary_name: nexus-rpc-gen
+            asset_name: nexus-rpc-gen_macos_arm64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          submodules: recursive
+      
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: "10"
+          run_install: false
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+
+      - name: Install dependencies and build
+        working-directory: src
+        run: pnpm install --frozen-lockfile  && pnpm run build
+
+      - name: Build binary with Bun
+        run: |
+          mkdir -p bin
+          cd src
+          bun build packages/nexus-rpc-gen/dist/index.js --compile --target=${{ matrix.bun_target }} --outfile=../bin/${{ matrix.binary_name }}
+
+      - name: Package binary (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          mkdir -p package/${{ matrix.asset_name }}
+          cp bin/${{ matrix.binary_name }} package/${{ matrix.asset_name }}/nexus-rpc-gen
+          cp LICENSE package/${{ matrix.asset_name }}/
+          cp README.md package/${{ matrix.asset_name }}/
+          cd package
+          tar -czf ${{ matrix.asset_name }}.tar.gz ${{ matrix.asset_name }}/
+          cd ..
+          mv package/${{ matrix.asset_name }}.tar.gz .
+
+      - name: Package binary (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          mkdir -p package\${{ matrix.asset_name }}
+          copy bin\${{ matrix.binary_name }} package\${{ matrix.asset_name }}\nexus-rpc-gen.exe
+          copy LICENSE package\${{ matrix.asset_name }}\
+          copy README.md package\${{ matrix.asset_name }}\
+          cd package
+          powershell -Command "Compress-Archive -Path ${{ matrix.asset_name }} -DestinationPath ${{ matrix.asset_name }}.zip"
+          cd ..
+          move package\${{ matrix.asset_name }}.zip .
+
+      - name: Upload packaged binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.asset_name }}
+          path: ${{ matrix.asset_name }}.${{ runner.os == 'Windows' && 'zip' || 'tar.gz' }}
+          retention-days: 30
+
+  smoke-test:
+    needs: build-binary
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            arch: x64
+            asset_name: nexus-rpc-gen_linux_x64
+            binary_name: nexus-rpc-gen
+            archive_ext: tar.gz
+            archive_path: nexus-rpc-gen_linux_x64.tar.gz
+            extract_cmd: tar -xzf
+            binary_relpath: nexus-rpc-gen_linux_x64/nexus-rpc-gen
+          - os: ubuntu-24.04-arm
+            arch: arm64
+            asset_name: nexus-rpc-gen_linux_arm64
+            binary_name: nexus-rpc-gen
+            archive_ext: tar.gz
+            archive_path: nexus-rpc-gen_linux_arm64.tar.gz
+            extract_cmd: tar -xzf
+            binary_relpath: nexus-rpc-gen_linux_arm64/nexus-rpc-gen
+          - os: windows-latest
+            arch: x64
+            asset_name: nexus-rpc-gen_windows_x64
+            binary_name: nexus-rpc-gen.exe
+            archive_ext: zip
+            archive_path: nexus-rpc-gen_windows_x64.zip
+            binary_relpath: nexus-rpc-gen_windows_x64/nexus-rpc-gen.exe
+          - os: macos-latest
+            arch: arm64
+            asset_name: nexus-rpc-gen_macos_arm64
+            binary_name: nexus-rpc-gen
+            archive_ext: tar.gz
+            archive_path: nexus-rpc-gen_macos_arm64.tar.gz
+            extract_cmd: tar -xzf
+            binary_relpath: nexus-rpc-gen_macos_arm64/nexus-rpc-gen
+          - os: macos-15-intel
+            arch: x64
+            asset_name: nexus-rpc-gen_macos_x64
+            binary_name: nexus-rpc-gen
+            archive_ext: tar.gz
+            archive_path: nexus-rpc-gen_macos_x64.tar.gz
+            extract_cmd: tar -xzf
+            binary_relpath: nexus-rpc-gen_macos_x64/nexus-rpc-gen
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - name: Download packaged binary
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ matrix.asset_name }}
+          path: artifacts
+
+      - name: Extract artifact (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          cd artifacts
+          ${{ matrix.extract_cmd }} ${{ matrix.archive_path }}
+
+      - name: Extract artifact (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          cd artifacts
+          powershell -Command "Expand-Archive -Path ${{ matrix.archive_path }} -DestinationPath ."
+
+      - name: Smoke test binary (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          mkdir -p smoke-test
+          artifacts/${{ matrix.binary_relpath }} --lang ts --out-file smoke-test/user-service.ts samples/user-service/user-service.nexusrpc.yaml
+          test -f smoke-test/user-service.ts
+
+      - name: Smoke test binary (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          mkdir -p smoke-test
+          ./artifacts/${{ matrix.binary_relpath }} --lang ts --out-file smoke-test/user-service.ts samples/user-service/user-service.nexusrpc.yaml
+          if (-not (Test-Path smoke-test/user-service.ts)) { exit 1 }
