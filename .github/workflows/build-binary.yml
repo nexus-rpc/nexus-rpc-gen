@@ -5,6 +5,12 @@ on:
   push:
     branches:
       - main
+  workflow_call:
+    inputs:
+      ref:
+        description: "Git ref to checkout (defaults to trigger ref)"
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -43,10 +49,11 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           submodules: recursive
-      
+          ref: ${{ inputs.ref || '' }}
+
       - name: Install pnpm
         uses: pnpm/action-setup@v4
         with:
@@ -54,11 +61,11 @@ jobs:
           run_install: false
 
       - name: Setup Bun
-        uses: oven-sh/setup-bun@v1
+        uses: oven-sh/setup-bun@v2
 
       - name: Install dependencies and build
         working-directory: src
-        run: pnpm install --frozen-lockfile  && pnpm run build
+        run: pnpm install --frozen-lockfile && pnpm run build
 
       - name: Build binary with Bun
         run: |
@@ -91,7 +98,7 @@ jobs:
           move package\${{ matrix.asset_name }}.zip .
 
       - name: Upload packaged binary
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: ${{ matrix.asset_name }}
           path: ${{ matrix.asset_name }}.${{ runner.os == 'Windows' && 'zip' || 'tar.gz' }}
@@ -145,12 +152,13 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           submodules: recursive
+          ref: ${{ inputs.ref || '' }}
 
       - name: Download packaged binary
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: ${{ matrix.asset_name }}
           path: artifacts

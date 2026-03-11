@@ -1,0 +1,119 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version (e.g. 0.1.0-alpha2)"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          ref: main
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Validate version format
+        run: |
+          version=${{ inputs.version }}
+          # regex from https://semver.org/
+          SEMVER_REGEX='^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$'
+          if ! echo "$version" | grep -qP $SEMVER_REGEX; then
+            echo "::error::Invalid version format: $version (expected semver, e.g. 1.2.3 or 1.2.3-alpha1)"
+            exit 1
+          fi
+
+      - name: Check tag does not already exist
+        run: |
+          if git rev-parse "v${{ inputs.version }}" >/dev/null 2>&1; then
+            echo "::error::Tag v${{ inputs.version }} already exists"
+            exit 1
+          fi
+
+  build-and-test:
+    needs: validate
+    uses: ./.github/workflows/ci.yml
+
+  prepare-release:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          ref: main
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Update package versions
+        run: |
+          version="${{ inputs.version }}"
+          for pkg in src/packages/nexus-rpc-gen/package.json src/packages/nexus-rpc-gen-core/package.json src/packages/nexus-rpc-gen-tests/package.json; do
+            jq --arg v "$version" '.version = $v' "$pkg" > "$pkg.tmp" && mv "$pkg.tmp" "$pkg"
+          done
+
+      - name: Configure git
+        run: |
+          git config --local user.name "${{ github.actor }}"
+          git config --local user.email "${{ github.actor_id }}+${{ github.actor }}@users.noreply.github.com"
+
+      - name: Commit and tag
+        run: |
+          git add src/packages/*/package.json
+          git commit -m "release: v${{ inputs.version }}"
+          git tag "v${{ inputs.version }}"
+
+      - name: Push commit and tag
+        run: |
+          git push origin HEAD
+          git push origin "v${{ inputs.version }}"
+
+  build-binaries:
+    needs: prepare-release
+    uses: ./.github/workflows/build-binary.yml
+    with:
+      ref: v${{ inputs.version }}
+
+  create-release:
+    needs: build-binaries
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          ref: v${{ inputs.version }}
+          fetch-depth: 0
+
+      - name: Download binary artifacts
+        uses: actions/download-artifact@v8
+        with:
+          pattern: nexus-rpc-gen_*
+          path: artifacts
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          prerelease_flag=""
+          if echo "${{ inputs.version }}" | grep -qE -- '-'; then
+            prerelease_flag="--prerelease"
+          fi
+
+          gh release create "v${{ inputs.version }}" \
+            --title "v${{ inputs.version }}" \
+            --generate-notes \
+            $prerelease_flag \
+            artifacts/nexus-rpc-gen_linux_x64/*.tar.gz \
+            artifacts/nexus-rpc-gen_linux_arm64/*.tar.gz \
+            artifacts/nexus-rpc-gen_windows_x64/*.zip \
+            artifacts/nexus-rpc-gen_macos_x64/*.tar.gz \
+            artifacts/nexus-rpc-gen_macos_arm64/*.tar.gz
