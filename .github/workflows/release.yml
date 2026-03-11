@@ -39,10 +39,6 @@ jobs:
             exit 1
           fi
 
-  build-and-test:
-    needs: validate
-    uses: ./.github/workflows/ci.yml
-
   prepare-release:
     needs: build-and-test
     runs-on: ubuntu-latest
