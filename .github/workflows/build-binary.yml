@@ -187,6 +187,7 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
+          $ErrorView = 'NormalView'
           mkdir -p smoke-test
           ./artifacts/${{ matrix.binary_relpath }} --lang ts --out-file smoke-test/user-service.ts samples/user-service/user-service.nexusrpc.yaml
           if (-not (Test-Path smoke-test/user-service.ts)) { exit 1 }
