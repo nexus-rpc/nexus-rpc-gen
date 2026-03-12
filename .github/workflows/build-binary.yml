@@ -188,5 +188,6 @@ jobs:
         shell: pwsh
         run: |
           mkdir smoke-test
-          ./artifacts/${{ matrix.binary_relpath }} --help
           ./artifacts/${{ matrix.binary_relpath }} --lang ts --out-file smoke-test/user-service.ts samples/user-service/user-service.nexusrpc.yaml
+          ls smoke-test
+          if (-not (Test-Path smoke-test/user-service.ts)) { exit 1 }
