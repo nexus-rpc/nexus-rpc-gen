@@ -7,6 +7,11 @@ on:
         description: "Release version (e.g. 0.1.0-alpha2)"
         required: true
         type: string
+      ref:
+        description: "Git ref to release from (branch or SHA)"
+        required: true
+        type: string
+        default: "main"
 
 permissions:
   contents: write
@@ -18,7 +23,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
         with:
-          ref: main
+          ref: ${{ inputs.ref }}
           fetch-depth: 0
           fetch-tags: true
 
@@ -40,13 +45,15 @@ jobs:
           fi
 
   prepare-release:
-    needs: build-and-test
+    needs: validate
     runs-on: ubuntu-latest
+    outputs:
+      commit-sha: ${{ steps.commit.outputs.sha }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
         with:
-          ref: main
+          ref: ${{ inputs.ref }}
           submodules: recursive
           fetch-depth: 0
 
@@ -62,52 +69,70 @@ jobs:
           git config --local user.name "${{ github.actor }}"
           git config --local user.email "${{ github.actor_id }}+${{ github.actor }}@users.noreply.github.com"
 
-      - name: Commit and tag
+      - name: Commit version bump
+        id: commit
         run: |
           git add src/packages/*/package.json
-          git commit -m "release: v${{ inputs.version }}"
-          git tag "v${{ inputs.version }}"
+          if git diff --cached --quiet; then
+            echo "Versions already match, skipping commit"
+          else
+            git commit -m "release: v${{ inputs.version }}"
+            git push origin HEAD
+          fi
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
-      - name: Push commit and tag
+  create-draft-release:
+    needs: prepare-release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          git push origin HEAD
-          git push origin "v${{ inputs.version }}"
+          version="${{ inputs.version }}"
+          commit_sha="${{ needs.prepare-release.outputs.commit-sha }}"
+
+          prerelease_flag=""
+          if echo "$version" | grep -qE -- '-'; then
+            prerelease_flag="--prerelease"
+          fi
+
+          if gh release view "v${version}" --repo "${{ github.repository }}" >/dev/null 2>&1; then
+            echo "Release v${version} already exists, skipping creation"
+          else
+            gh release create "v${version}" \
+              --repo "${{ github.repository }}" \
+              --title "v${version}" \
+              --target "${commit_sha}" \
+              --generate-notes \
+              --draft \
+              $prerelease_flag
+          fi
 
   build-binaries:
     needs: prepare-release
     uses: ./.github/workflows/build-binary.yml
     with:
-      ref: v${{ inputs.version }}
+      ref: ${{ needs.prepare-release.outputs.commit-sha }}
 
-  create-release:
-    needs: build-binaries
+  upload-artifacts:
+    needs: [build-binaries, create-draft-release]
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
-        with:
-          ref: v${{ inputs.version }}
-          fetch-depth: 0
-
       - name: Download binary artifacts
         uses: actions/download-artifact@v8
         with:
           pattern: nexus-rpc-gen_*
           path: artifacts
+          skip-decompress: true
 
-      - name: Create GitHub Release
+      - name: Upload artifacts to release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          prerelease_flag=""
-          if echo "${{ inputs.version }}" | grep -qE -- '-'; then
-            prerelease_flag="--prerelease"
-          fi
-
-          gh release create "v${{ inputs.version }}" \
-            --title "v${{ inputs.version }}" \
-            --generate-notes \
-            $prerelease_flag \
+          gh release upload "v${{ inputs.version }}" \
+            --repo "${{ github.repository }}" \
+            --clobber \
             artifacts/nexus-rpc-gen_linux_x64/*.tar.gz \
             artifacts/nexus-rpc-gen_linux_arm64/*.tar.gz \
             artifacts/nexus-rpc-gen_windows_x64/*.zip \
