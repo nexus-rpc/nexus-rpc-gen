@@ -183,12 +183,7 @@ function printUsage() {
 // Node 22.18+ and 24.2+ provides `import.meta.main`, which deprecates the need for
 // this npm library. Bun and Deno have had that API for a long time already. But until
 // we're ready to drop older versions of Node, we need this library to support it.
-console.log(import.meta.main);
-const meta = import.meta;
-console.log("main" in meta);
-console.log(meta.main);
-console.log("main in return:", !!meta.main);
-if (esMain(import.meta)) {
+if (import.meta.main || esMain(import.meta)) {
   try {
     await main(process.argv.slice(2));
   } catch (error) {
