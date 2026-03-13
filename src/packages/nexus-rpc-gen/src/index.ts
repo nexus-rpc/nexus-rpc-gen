@@ -186,6 +186,7 @@ function printUsage() {
 const meta = import.meta;
 console.log("meta:", !meta);
 console.log("main" in meta);
+console.log(meta.main);
 console.log("main in return:", !!meta.main);
 console.log("process argv fallback:", !process.argv[1]);
 const r = createRequire(meta.url);
