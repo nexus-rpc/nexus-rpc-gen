@@ -183,7 +183,7 @@ function printUsage() {
 // we're ready to drop older versions of Node, we need this library to support it.
 console.log(process.argv[1]);
 const fromNode = esMain(import.meta);
-console.log(fromNode)
+console.log(fromNode);
 if (fromNode) {
   try {
     await main(process.argv.slice(2));
