@@ -60,7 +60,7 @@ jobs:
       - name: Update package versions
         run: |
           version="${{ inputs.version }}"
-          for pkg in src/packages/nexus-rpc-gen/package.json src/packages/nexus-rpc-gen-core/package.json src/packages/nexus-rpc-gen-tests/package.json; do
+          for pkg in src/packages/*/package.json; do
             jq --arg v "$version" '.version = $v' "$pkg" > "$pkg.tmp" && mv "$pkg.tmp" "$pkg"
           done
 
