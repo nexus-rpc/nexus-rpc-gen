@@ -186,8 +186,8 @@ function printUsage() {
 // we're ready to drop older versions of Node, we need this library to support it.
 const meta = import.meta;
 console.log("meta:", !meta);
-console.log("main in meta":, 'main' in meta);
-console.log("main in return":, !!meta.main);
+console.log("main in meta:", 'main' in meta);
+console.log("main in return:", !!meta.main);
 console.log("process argv fallback:", !process.argv[1]);
 console.log("require:", createRequire(meta.url));
 console.log("scriptPath:", require.resolve(process.argv[1]));
