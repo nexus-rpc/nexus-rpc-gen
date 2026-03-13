@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 
-import { pathToFileURL } from "node:url";
+import { createRequire } from "node:module";
+
+import { fileURLToPath, pathToFileURL } from "node:url";
 import commandLineArgs, { type OptionDefinition } from "command-line-args";
 import { languageNamed, type LanguageName } from "quicktype-core";
 import esMain from "es-main";
@@ -178,10 +180,10 @@ function printUsage() {
   console.log(getUsage(sections));
 }
 
-// Node 22.18+ and 24.2+ provides `import.meta.main`, which deprcates the need for
+// Node 22.18+ and 24.2+ provides `import.meta.main`, which deprecates the need for
 // this npm library. Bun and Deno have had that API for a long time already. But until
 // we're ready to drop older versions of Node, we need this library to support it.
-if (esMain(import.meta)) {
+if (import.meta.main || esMain(import.meta)) {
   try {
     await main(process.argv.slice(2));
   } catch (error) {
