@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { createRequire } from 'node:module';
+import { createRequire } from "node:module";
 
 import { fileURLToPath, pathToFileURL } from "node:url";
 import commandLineArgs, { type OptionDefinition } from "command-line-args";
@@ -185,7 +185,7 @@ function printUsage() {
 // we're ready to drop older versions of Node, we need this library to support it.
 const meta = import.meta;
 console.log("meta:", !meta);
-console.log('main' in meta);
+console.log("main" in meta);
 console.log("main in return:", !!meta.main);
 console.log("process argv fallback:", !process.argv[1]);
 console.log("require:", createRequire(meta.url));
