@@ -188,9 +188,10 @@ console.log("meta:", !meta);
 console.log("main" in meta);
 console.log("main in return:", !!meta.main);
 console.log("process argv fallback:", !process.argv[1]);
-console.log("require:", createRequire(meta.url));
-console.log("scriptPath:", require.resolve(process.argv[1]));
-console.log("extension:", path.extname(require.resolve(process.argv[1])));
+const r = createRequire(meta.url);
+console.log("require:", r);
+console.log("scriptPath:", r.resolve(process.argv[1]));
+console.log("extension:", path.extname(r.resolve(process.argv[1])));
 if (esMain(import.meta)) {
   try {
     await main(process.argv.slice(2));
