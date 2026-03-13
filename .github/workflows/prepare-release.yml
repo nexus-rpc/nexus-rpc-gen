@@ -124,7 +124,6 @@ jobs:
         with:
           pattern: nexus-rpc-gen_*
           path: artifacts
-          skip-decompress: true
 
       - name: Upload artifacts to release
         env:
