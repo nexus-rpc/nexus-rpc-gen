@@ -1,5 +1,8 @@
 #!/usr/bin/env node
 
+import {createRequire} from 'node:module';
+import {fileURLToPath} from 'node:url';
+
 import { pathToFileURL } from "node:url";
 import commandLineArgs, { type OptionDefinition } from "command-line-args";
 import { languageNamed, type LanguageName } from "quicktype-core";
@@ -181,7 +184,14 @@ function printUsage() {
 // Node 22.18+ and 24.2+ provides `import.meta.main`, which deprecates the need for
 // this npm library. Bun and Deno have had that API for a long time already. But until
 // we're ready to drop older versions of Node, we need this library to support it.
-console.log('main' in import.meta);
+const meta = import.meta;
+console.log("meta:", !meta);
+console.log("main in meta":, 'main' in meta);
+console.log("main in return":, !!meta.main);
+console.log("process argv fallback:", !process.argv[1]);
+console.log("require:", createRequire(meta.url));
+console.log("scriptPath:", require.resolve(process.argv[1]));
+console.log("extension:", path.extname(require.resolve(process.argv[1])))
 if (esMain(import.meta)) {
   try {
     await main(process.argv.slice(2));
