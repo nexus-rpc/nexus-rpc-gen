@@ -182,7 +182,7 @@ function printUsage() {
 // this npm library. Bun and Deno have had that API for a long time already. But until
 // we're ready to drop older versions of Node, we need this library to support it.
 console.log(process.argv[1]);
-fromNode = esMain(import.meta);
+const fromNode = esMain(import.meta);
 console.log(fromNode)
 if (fromNode) {
   try {
