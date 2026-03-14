@@ -96,6 +96,7 @@ type GoRenderAccessible = Omit<GoRenderer, "emitTypesAndSupport"> &
 
 class GoRenderAdapter extends RenderAdapter<GoRenderAccessible> {
   private _imports?: Record<string, string>;
+  private _selfPackageImport?: string;
 
   assertValidOptions() {
     // Currently, we only support single-file in Go
@@ -142,8 +143,16 @@ class GoRenderAdapter extends RenderAdapter<GoRenderAccessible> {
         this._imports[mport] = mport.split("/").pop()!;
       }
 
-      // Add any external type reference pre-last-dots as imports
+      // Add any external type reference pre-last-dots as imports, skipping
+      // self-imports (where the alias would match the current package name).
       // TODO(cretz): Generics with qualified type args that need to be imported?
+      // Detect self-imports: when a $goRef points to a package that is
+      // the same as the output package, skip the import and use unqualified
+      // type names. This handles both standard packages (last segment matches
+      // package name) and Go proto convention where the directory is "v1" but
+      // the package is named after the parent (e.g., "workerservice/v1" with
+      // package workerservice).
+      const currentPackage = this.render._options.packageName;
       const externalTypes = Object.values(this.schema.services).flatMap((svc) =>
         Object.values(svc.operations).flatMap((op) => [
           op?.input?.kind == "existing" ? op.input.name : null,
@@ -154,9 +163,20 @@ class GoRenderAdapter extends RenderAdapter<GoRenderAccessible> {
         const lastDot = externalType?.lastIndexOf(".") ?? -1;
         if (externalType && lastDot > 0) {
           const mport = externalType.slice(0, lastDot);
+          const segments = mport.split("/");
+          const lastSegment = segments[segments.length - 1];
+          const isSelfImport =
+            lastSegment === currentPackage ||
+            (lastSegment.match(/^v\d+$/) &&
+              segments.length >= 2 &&
+              segments[segments.length - 2] === currentPackage);
+          if (isSelfImport) {
+            this._selfPackageImport = mport;
+            continue;
+          }
           if (!Object.hasOwn(this._imports, mport)) {
             // Append number until an unused alias is found
-            const origAlias = mport.split("/").pop()!;
+            const origAlias = lastSegment;
             let alias = origAlias;
             let number_ = 0;
             while (Object.values(this._imports).includes(alias)) {
@@ -164,6 +184,36 @@ class GoRenderAdapter extends RenderAdapter<GoRenderAccessible> {
             }
             this._imports[mport] = alias;
           }
+        }
+      }
+
+      // Remove unused imports: only keep imports that are actually
+      // referenced by external types or by generated inline types
+      const usedImportPaths = new Set<string>();
+      usedImportPaths.add("github.com/nexus-rpc/sdk-go/nexus");
+      for (const externalType of externalTypes) {
+        const lastDot = externalType?.lastIndexOf(".") ?? -1;
+        if (externalType && lastDot > 0) {
+          const mport = externalType.slice(0, lastDot);
+          if (mport !== this._selfPackageImport) {
+            usedImportPaths.add(mport);
+          }
+        }
+      }
+      // Check if there are any inline (jsonSchema) types that need encoding/json
+      const hasInlineTypes = Object.values(this.schema.services).some((svc) =>
+        Object.values(svc.operations).some(
+          (op) =>
+            op?.input?.kind === "jsonSchema" ||
+            op?.output?.kind === "jsonSchema",
+        ),
+      );
+      if (hasInlineTypes) {
+        usedImportPaths.add("encoding/json");
+      }
+      for (const mport of Object.keys(this._imports)) {
+        if (!usedImportPaths.has(mport)) {
+          delete this._imports[mport];
         }
       }
     }
@@ -217,8 +267,10 @@ class GoRenderAdapter extends RenderAdapter<GoRenderAccessible> {
   emitService(serviceName: string, serviceSchema: PreparedService) {
     this.render.ensureBlankLine();
 
+    const lastDot = serviceName.lastIndexOf(".");
+    const shortName = lastDot > 0 ? serviceName.slice(lastDot + 1) : serviceName;
     const variableName = this.makeServiceTypeName(
-      this.render.makeNamedTypeNamer().nameStyle(serviceName),
+      this.render.makeNamedTypeNamer().nameStyle(shortName),
     );
 
     // Collect operations
@@ -286,11 +338,14 @@ class GoRenderAdapter extends RenderAdapter<GoRenderAccessible> {
     if (!reference) {
       return undefined;
     } else if (reference.kind == "existing") {
-      // If there is a dot, need to take qualified package and get alias
       const lastDot = reference.name.lastIndexOf(".");
       if (lastDot > 0) {
         const mport = reference.name.slice(0, lastDot);
-        return `${this.imports[mport]}.${reference.name.slice(lastDot + 1)}`;
+        const typeName = reference.name.slice(lastDot + 1);
+        if (mport === this._selfPackageImport) {
+          return typeName;
+        }
+        return `${this.imports[mport]}.${typeName}`;
       }
       return reference.name;
     } else {
