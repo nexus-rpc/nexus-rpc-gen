@@ -1,0 +1,125 @@
+name: Post Release Publish
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish-npm:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Determine version and dist-tag
+        id: release
+        run: |
+          tag="${{ github.event.release.tag_name }}"
+          version="${tag#v}"
+
+          # Derive dist-tag from version
+          if echo "$version" | grep -qE -- '-rc\.[0-9]+'; then
+            dist_tag="next"
+          elif echo "$version" | grep -qE -- '-beta\.[0-9]+'; then
+            dist_tag="beta"
+          elif echo "$version" | grep -qE -- '-alpha\.[0-9]+'; then
+            dist_tag="alpha"
+          else
+            dist_tag="latest"
+          fi
+
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "dist_tag=$dist_tag" >> "$GITHUB_OUTPUT"
+          echo "Release: $tag (version=$version, dist-tag=$dist_tag)"
+
+      - name: Install Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Download tarballs from release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p npm-packages
+          gh release download "${{ steps.release.outputs.tag }}" \
+            --repo "${{ github.repository }}" \
+            --pattern "nexus-rpc-gen*.tgz" \
+            --dir npm-packages
+
+          echo "Downloaded packages:"
+          ls -la npm-packages/
+
+      - name: Publish packages to npm
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          dist_tag="${{ steps.release.outputs.dist_tag }}"
+          version="${{ steps.release.outputs.version }}"
+
+          for tgz in npm-packages/*.tgz; do
+            name=$(tar -xf "$tgz" -O package/package.json | jq -r .name)
+
+            echo "---"
+            echo "Publishing $name@$version (tag: $dist_tag) from $tgz"
+
+            if npm view "${name}@${version}" version 2>/dev/null; then
+              echo "  Already published, skipping."
+              continue
+            fi
+
+            npm publish --provenance "$tgz" --tag "$dist_tag"
+            echo "  Published successfully."
+          done
+
+  smoke-test:
+    needs: publish-npm
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.release.tag_name }}
+          sparse-checkout: samples
+
+      - name: Install Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+
+      - name: Wait for npm propagation and install packages
+        run: |
+          version="${{ github.event.release.tag_name }}"
+          version="${version#v}"
+          max_retries=10
+          retry_delay=30
+
+          for attempt in $(seq 1 "$max_retries"); do
+            echo "Attempt $attempt/$max_retries: installing packages..."
+            if npm install --no-save "nexus-rpc-gen@${version}" "@nexus-rpc/gen-core@${version}" 2>/dev/null; then
+              echo "Packages installed successfully."
+              break
+            fi
+            if (( attempt == max_retries )); then
+              echo "Error: Failed to install packages after $max_retries attempts."
+              exit 1
+            fi
+            echo "Packages not yet available, retrying in ${retry_delay}s..."
+            sleep "$retry_delay"
+          done
+
+      - name: Smoke test CLI
+        run: |
+          npx nexus-rpc-gen --help
+
+          mkdir -p smoke-test-output
+          npx nexus-rpc-gen \
+            --lang ts \
+            --out-file smoke-test-output/user-service.ts \
+            samples/user-service/user-service.nexusrpc.yaml
+
+          test -f smoke-test-output/user-service.ts
+          echo "Smoke test passed."

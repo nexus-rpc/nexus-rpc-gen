@@ -8,81 +8,66 @@ on:
         required: true
         type: string
       ref:
-        description: "Git ref to release from (branch or SHA)"
+        description: "Git SHA to release from"
         required: true
         type: string
-        default: "main"
+
+concurrency:
+  group: release-${{ inputs.version }}
+  cancel-in-progress: true
 
 permissions:
   contents: write
 
 jobs:
-  validate:
+  build-binaries:
+    uses: ./.github/workflows/build-binary.yml
+    with:
+      ref: ${{ inputs.ref }}
+
+  pack-npm-packages:
     runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
-        with:
-          ref: ${{ inputs.ref }}
-          fetch-depth: 0
-          fetch-tags: true
-
-      - name: Validate version format
-        run: |
-          version=${{ inputs.version }}
-          # regex from https://semver.org/
-          SEMVER_REGEX='^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$'
-          if ! echo "$version" | grep -qP $SEMVER_REGEX; then
-            echo "::error::Invalid version format: $version (expected semver, e.g. 1.2.3 or 1.2.3-alpha1)"
-            exit 1
-          fi
-
-      - name: Check tag does not already exist
-        run: |
-          if git rev-parse "v${{ inputs.version }}" >/dev/null 2>&1; then
-            echo "::error::Tag v${{ inputs.version }} already exists"
-            exit 1
-          fi
-
-  prepare-release:
-    needs: validate
-    runs-on: ubuntu-latest
-    outputs:
-      commit-sha: ${{ steps.commit.outputs.sha }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
         with:
           ref: ${{ inputs.ref }}
           submodules: recursive
-          fetch-depth: 0
 
-      - name: Update package versions
-        run: |
-          version="${{ inputs.version }}"
-          for pkg in src/packages/*/package.json; do
-            jq --arg v "$version" '.version = $v' "$pkg" > "$pkg.tmp" && mv "$pkg.tmp" "$pkg"
-          done
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: "10"
+          run_install: false
 
-      - name: Configure git
-        run: |
-          git config --local user.name "${{ github.actor }}"
-          git config --local user.email "${{ github.actor_id }}+${{ github.actor }}@users.noreply.github.com"
+      - name: Install Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: "pnpm"
+          cache-dependency-path: src/pnpm-lock.yaml
 
-      - name: Commit version bump
-        id: commit
+      - name: Install dependencies and build
+        working-directory: src
+        run: pnpm install --frozen-lockfile && pnpm run build
+
+      - name: Pack packages
+        working-directory: src
         run: |
-          git add src/packages/*/package.json
-          if git diff --cached --quiet; then
-            echo "Versions already match, skipping commit"
-          else
-            git commit -m "release: v${{ inputs.version }}"
-            git push origin HEAD
-          fi
-          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          mkdir -p ../npm-packages
+          cd packages/nexus-rpc-gen-core
+          pnpm pack --pack-destination ../../npm-packages
+          cd ../nexus-rpc-gen
+          pnpm pack --pack-destination ../../npm-packages
+
+      - name: Upload npm package artifacts
+        uses: actions/upload-artifact@v6
+        with:
+          name: npm-packages
+          path: npm-packages/*.tgz
+          retention-days: 30
 
   create-draft-release:
-    needs: prepare-release
     runs-on: ubuntu-latest
     steps:
       - name: Create draft release
@@ -90,7 +75,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           version="${{ inputs.version }}"
-          commit_sha="${{ needs.prepare-release.outputs.commit-sha }}"
+          commit_sha="${{ inputs.ref }}"
 
           prerelease_flag=""
           if echo "$version" | grep -qE -- '-'; then
@@ -109,14 +94,8 @@ jobs:
               $prerelease_flag
           fi
 
-  build-binaries:
-    needs: prepare-release
-    uses: ./.github/workflows/build-binary.yml
-    with:
-      ref: ${{ needs.prepare-release.outputs.commit-sha }}
-
   upload-artifacts:
-    needs: [build-binaries, create-draft-release]
+    needs: [build-binaries, create-draft-release, pack-npm-packages]
     runs-on: ubuntu-latest
     steps:
       - name: Download binary artifacts
@@ -125,7 +104,13 @@ jobs:
           pattern: nexus-rpc-gen_*
           path: artifacts
 
-      - name: Upload artifacts to release
+      - name: Download npm package artifacts
+        uses: actions/download-artifact@v8
+        with:
+          name: npm-packages
+          path: npm-packages
+
+      - name: Upload all artifacts to release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -136,4 +121,5 @@ jobs:
             artifacts/nexus-rpc-gen_linux_arm64/*.tar.gz \
             artifacts/nexus-rpc-gen_windows_x64/*.zip \
             artifacts/nexus-rpc-gen_macos_x64/*.tar.gz \
-            artifacts/nexus-rpc-gen_macos_arm64/*.tar.gz
+            artifacts/nexus-rpc-gen_macos_arm64/*.tar.gz \
+            npm-packages/*.tgz

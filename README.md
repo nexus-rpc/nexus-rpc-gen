@@ -154,7 +154,21 @@ pnpm run build && pnpm run test
 `nexus-rpc-gen` can also be packaged as a single binary using [Bun](https://bun.com/docs/bundler/executables).
 
 ```bash
-pnpm install --frozen-lockfile  &&  pnpm run build && bun build packages/nexus-rpc-gen/src/index.ts --compile --outfile bin/nexus-rpc-gen
+pnpm install --frozen-lockfile && pnpm run build && bun build packages/nexus-rpc-gen/src/index.ts --compile --outfile bin/nexus-rpc-gen
 ```
 
 The resulting single binary will be in `src/bin/nexus-rpc-gen`.
+
+### Releasing
+
+Use the `initiate-release.sh` script to start a release. Run from the repository root:
+
+```bash
+./scripts/initiate-release.sh --version 1.0.0 --type ga
+./scripts/initiate-release.sh --version 1.1.0-rc.1 --type rc
+./scripts/initiate-release.sh --version 1.1.0-beta.1 --type beta --branch main
+```
+
+The script bumps versions, opens a PR, waits for merge, and triggers the `prepare-release` workflow
+which builds binaries and creates a draft GitHub release. After reviewing and publishing the draft release,
+npm packages are published automatically.
