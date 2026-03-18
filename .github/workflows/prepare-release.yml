@@ -82,7 +82,9 @@ jobs:
           fi
 
           if gh release view "v${version}" --repo "${{ github.repository }}" >/dev/null 2>&1; then
-            echo "Release v${version} already exists, skipping creation"
+            echo "::error::Release v${version} already exists, stopping."
+            echo "::error::Cleanup existing draft release."
+            exit 1
           else
             gh release create "v${version}" \
               --repo "${{ github.repository }}" \
