@@ -55,16 +55,15 @@ jobs:
         working-directory: src
         run: |
           mkdir -p ../npm-packages
-          cd packages/nexus-rpc-gen-core
-          pnpm pack --pack-destination ../../npm-packages
-          cd ../nexus-rpc-gen
-          pnpm pack --pack-destination ../../npm-packages
+          pnpm -r pack --pack-destination ../npm-packages
 
       - name: Upload npm package artifacts
         uses: actions/upload-artifact@v6
         with:
           name: npm-packages
-          path: npm-packages/*.tgz
+          path: |
+            npm-packages/*.tgz
+            !npm-packages/*tests*.tgz
           retention-days: 30
 
   create-draft-release:
