@@ -169,7 +169,7 @@ git checkout -b "$release_branch" "$branch"
 echo "Bumping versions to $version..."
 (cd src && pnpm -r exec npm version "${version}" --no-git-tag-version)
 
-git add src/package.json src/packages/*/package.json
+git add src/packages/*/package.json
 git commit -m "release: bump version to v${version}"
 git push -u origin "$release_branch"
 
