@@ -42,6 +42,18 @@ nexus-rpc-gen --lang ts --out-file my-out-file.ts my-service.nexusrpc.yaml
 This will generate a `my-out-file.ts` code file from the given YAML definition file. See [samples](samples) for what
 output may look like in different languages.
 
+### CLI Options
+
+| Option | Description |
+|---|---|
+| `--help`, `-h` | Display help. |
+| `--lang` | The target language. (`cs`\|`go`\|`java`\|`py`\|`ts`) |
+| `--out-dir` | Out directory. Mutually exclusive with `--out-file`. |
+| `--out-file` | Out file. Mutually exclusive with `--out-dir`. |
+| `--dry-run` | Dump every file that would be written to stdout instead. |
+
+Some languages have additional options. Run `nexus-rpc-gen --help` for the full list.
+
 ## Definition File
 
 Nexus definition files are YAML files that contain any number of services or types. Nexus definition files are usually
@@ -102,17 +114,20 @@ section. Users are strongly encouraged to make an `object` type for each operati
 section. This provides a future-proof way to extend the input/output with more non-required properties.
 
 In addition to regular JSON schema, the top-level `input` and `output` types can instead have a `$<lang>Ref` key where
-`<lang>` is `csharp`, `go`, `java`, `python`, or `typescript`. If present for the language being generated, that type is
-referenced instead of generating the JSON schema type. This can be used to refer to existing types already in a
-codebase. The format for qualifying a type for each of these can differ, see the [schema](schemas/nexus-rpc-gen.yml) for
-these properties for more details.
+`<lang>` is `csharp`, `go`, `java`, `python`, or `typescript`. If a matching `$<lang>Ref` is present for the language
+being generated, that type is used directly (with the appropriate import) instead of generating the JSON schema type.
+If no `$<lang>Ref` matches, the `$ref` value is used as a fallback. This is useful for referencing types that already
+exist in your codebase.
+
+The format for qualifying a type differs per language — see the [schema](schemas/nexus-rpc-gen.yml) for details and the
+[inventory-service sample](samples/inventory-service) for a full working example.
 
 ### IDE Support
 
 A schema file for the YAML is at [schemas/nexus-rpc-gen.json](schemas/nexus-rpc-gen.json) and can be used with editors
-to get intellisense and validation of Nexus YAML files.
+to get autocomplete and validation of Nexus YAML files.
 
-For example, in VSCode, the following setting can be set in settings JSON:
+For example, in VSCode, add the following to `.vscode/settings.json` (or your user settings):
 
 ```json
 {
@@ -124,7 +139,7 @@ For example, in VSCode, the following setting can be set in settings JSON:
 }
 ```
 
-This will make all files with `.nexusrpc.yaml` have proper intellisense and validation while editing.
+This will provide autocomplete and validation for all `.nexusrpc.yaml` files.
 
 ## Development
 

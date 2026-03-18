@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 
-import { pathToFileURL } from "node:url";
 import commandLineArgs, { type OptionDefinition } from "command-line-args";
 import { languageNamed, type LanguageName } from "quicktype-core";
 import esMain from "es-main";

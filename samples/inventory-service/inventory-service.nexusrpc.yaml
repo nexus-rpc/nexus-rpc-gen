@@ -1,0 +1,114 @@
+# yaml-language-server: $schema=../../schemas/nexus-rpc-gen.json
+nexusrpc: 1.0.0
+
+services:
+  InventoryService:
+    description: >-
+      An inventory tracking service that demonstrates using $langRef to
+      reference types that already exist in your target language instead of
+      generating new ones.
+    operations:
+      addItem:
+        description: Add a new item to the inventory.
+        input:
+          $ref: '#/types/AddItemInput'
+        output:
+          $ref: '#/types/AddItemOutput'
+
+      getItemStock:
+        description: Get current stock levels for an item.
+        input:
+          $ref: '#/types/GetItemStockInput'
+        output:
+          # Use an existing type in each language for the response, falling
+          # back to a generated type for languages without a $langRef.
+          $goRef: github.com/example/inventory/types.StockLevel
+          $javaRef: com.example.inventory.StockLevel
+          $pythonRef: inventory.types.StockLevel
+          $csharpRef: Example.Inventory.StockLevel
+          $typescriptRef: ./types.js#StockLevel
+          $ref: '#/types/StockLevel'
+
+      reserveStock:
+        description: Reserve stock for a pending order.
+        input:
+          # Use an existing type for Go and Java; other languages will fall
+          # back to the generated type from $ref.
+          $goRef: github.com/example/inventory/types.ReservationRequest
+          $javaRef: com.example.inventory.ReservationRequest
+          $ref: '#/types/ReserveStockInput'
+        output:
+          $ref: '#/types/ReserveStockOutput'
+
+types:
+  AddItemInput:
+    type: object
+    additionalProperties: false
+    properties:
+      sku:
+        description: Stock-keeping unit identifier.
+        type: string
+      name:
+        description: Human-readable item name.
+        type: string
+      initialQuantity:
+        description: Starting quantity to stock.
+        type: integer
+    required: [sku, name, initialQuantity]
+
+  AddItemOutput:
+    type: object
+    additionalProperties: false
+    properties:
+      added:
+        description: Whether the item was successfully added.
+        type: boolean
+    required: [added]
+
+  GetItemStockInput:
+    type: object
+    additionalProperties: false
+    properties:
+      sku:
+        description: The SKU to look up.
+        type: string
+    required: [sku]
+
+  StockLevel:
+    type: object
+    additionalProperties: false
+    properties:
+      sku:
+        type: string
+      quantity:
+        description: Current quantity in stock.
+        type: integer
+      status:
+        description: Current stock status.
+        type: string
+        enum: [in_stock, low_stock, out_of_stock]
+    required: [sku, quantity, status]
+
+  ReserveStockInput:
+    type: object
+    additionalProperties: false
+    properties:
+      sku:
+        description: The SKU to reserve.
+        type: string
+      quantity:
+        description: Number of units to reserve.
+        type: integer
+      orderId:
+        description: The order this reservation is for.
+        type: string
+    required: [sku, quantity, orderId]
+
+  ReserveStockOutput:
+    type: object
+    additionalProperties: false
+    properties:
+      reserved:
+        description: Whether the stock was successfully reserved.
+        type: boolean
+    required: [reserved]
