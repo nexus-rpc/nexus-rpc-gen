@@ -161,12 +161,12 @@ The resulting single binary will be in `src/bin/nexus-rpc-gen`.
 
 ### Releasing
 
-Use the `initiate-release.sh` script to start a release. Run from the repository root:
+Use the `initiate-release.mjs` script to start a release. Run from the repository root:
 
 ```bash
-./scripts/initiate-release.sh --version 1.0.0 --type ga
-./scripts/initiate-release.sh --version 1.1.0-rc.1 --type rc
-./scripts/initiate-release.sh --version 1.1.0-beta.1 --type beta --branch main
+node scripts/initiate-release.mjs --version 1.0.0 --type ga
+node scripts/initiate-release.mjs --version 1.1.0-rc.1 --type rc
+node scripts/initiate-release.mjs --version 1.1.0-beta.1 --type beta --branch main
 ```
 
 The script bumps versions, opens a PR, waits for merge, and triggers the `prepare-release` workflow
