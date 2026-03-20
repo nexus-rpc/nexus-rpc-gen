@@ -54,8 +54,6 @@ jobs:
           ls -la npm-packages/
 
       - name: Publish packages to npm
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           dist_tag="${{ steps.release.outputs.dist_tag }}"
           version="${{ steps.release.outputs.version }}"
