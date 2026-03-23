@@ -1,6 +1,6 @@
 {
   "name": "nexus-rpc-gen",
-  "version": "0.1.0-alpha1",
+  "version": "0.1.0-alpha.2",
   "description": "Nexus code generation",
   "author": "Temporal Technologies Inc. <sdk@temporal.io>",
   "license": "MIT",
