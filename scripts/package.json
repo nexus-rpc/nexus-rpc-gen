@@ -1,0 +1,8 @@
+{
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "semver": "^7",
+    "simple-git": "^3"
+  }
+}

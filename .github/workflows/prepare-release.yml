@@ -1,0 +1,126 @@
+name: Prepare Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version (e.g. 0.1.0-alpha2)"
+        required: true
+        type: string
+      ref:
+        description: "Git SHA to release from"
+        required: true
+        type: string
+
+concurrency:
+  group: release-${{ inputs.version }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  build-binaries:
+    uses: ./.github/workflows/build-binary.yml
+    with:
+      ref: ${{ inputs.ref }}
+
+  pack-npm-packages:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.ref }}
+          submodules: recursive
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: "10"
+          run_install: false
+
+      - name: Install Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: "pnpm"
+          cache-dependency-path: src/pnpm-lock.yaml
+
+      - name: Install dependencies and build
+        working-directory: src
+        run: pnpm install --frozen-lockfile && pnpm run build
+
+      - name: Pack packages
+        working-directory: src
+        run: |
+          mkdir -p ../npm-packages
+          pnpm -r pack --pack-destination ../npm-packages
+
+      - name: Upload npm package artifacts
+        uses: actions/upload-artifact@v6
+        with:
+          name: npm-packages
+          path: |
+            npm-packages/*.tgz
+            !npm-packages/*tests*.tgz
+          retention-days: 30
+
+  create-draft-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="${{ inputs.version }}"
+          commit_sha="${{ inputs.ref }}"
+
+          prerelease_flag=""
+          if echo "$version" | grep -qE -- '-'; then
+            prerelease_flag="--prerelease"
+          fi
+
+          if gh release view "v${version}" --repo "${{ github.repository }}" >/dev/null 2>&1; then
+            echo "::error::Release v${version} already exists, stopping."
+            echo "::error::Cleanup existing draft release."
+            exit 1
+          else
+            gh release create "v${version}" \
+              --repo "${{ github.repository }}" \
+              --title "v${version}" \
+              --target "${commit_sha}" \
+              --generate-notes \
+              --draft \
+              $prerelease_flag
+          fi
+
+  upload-artifacts:
+    needs: [build-binaries, create-draft-release, pack-npm-packages]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download binary artifacts
+        uses: actions/download-artifact@v8
+        with:
+          pattern: nexus-rpc-gen_*
+          path: artifacts
+
+      - name: Download npm package artifacts
+        uses: actions/download-artifact@v8
+        with:
+          name: npm-packages
+          path: npm-packages
+
+      - name: Upload all artifacts to release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload "v${{ inputs.version }}" \
+            --repo "${{ github.repository }}" \
+            --clobber \
+            artifacts/nexus-rpc-gen_linux_x64/*.tar.gz \
+            artifacts/nexus-rpc-gen_linux_arm64/*.tar.gz \
+            artifacts/nexus-rpc-gen_windows_x64/*.zip \
+            artifacts/nexus-rpc-gen_macos_x64/*.tar.gz \
+            artifacts/nexus-rpc-gen_macos_arm64/*.tar.gz \
+            npm-packages/*.tgz
