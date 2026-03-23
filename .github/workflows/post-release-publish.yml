@@ -58,7 +58,7 @@ jobs:
           dist_tag="${{ steps.release.outputs.dist_tag }}"
           version="${{ steps.release.outputs.version }}"
 
-          for tgz in npm-packages/*.tgz; do
+          for tgz in ./npm-packages/*.tgz; do
             name=$(tar -xf "$tgz" -O package/package.json | jq -r .name)
 
             echo "---"
