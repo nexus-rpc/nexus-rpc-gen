@@ -9,27 +9,19 @@ incompatible ways until the generator is marked stable.
 
 ## Installation
 
-Since this is under active development, the project must be manually built with latest stable nodejs, e.g. from the
-`src` directory:
+This generator is under active development, but the alpha version is available with npx.
+
+```bash
+npx nexus-rpc-gen@alpha
+```
+
+This generator can also be built locally with latest stable Node.js from the `src` directory:
 
 ```bash
 pnpm install && pnpm run build
 ```
 
-Then it it can be run via `pnpm tsx src/packages/nexus-rpc-gen/src/index.ts`. The rest of the document assumes this is in
-an executable shell file named `nexus-rpc-gen` for non-Windows:
-
-```bash
-#!/usr/bin/env sh
-pnpm tsx src/packages/nexus-rpc-gen/src/index.ts "$@"
-```
-
-Or `nexus-rpc-gen.bat` for Windows:
-
-```
-@echo off
-pnpm tsx src/packages/nexus-rpc-gen/src/index.ts %*
-```
+Then run via `pnpm tsx src/packages/nexus-rpc-gen/src/index.ts`.
 
 ## Usage
 
@@ -42,17 +34,30 @@ nexus-rpc-gen --lang ts --out-file my-out-file.ts my-service.nexusrpc.yaml
 This will generate a `my-out-file.ts` code file from the given YAML definition file. See [samples](samples) for what
 output may look like in different languages.
 
-### CLI Options
+<!-- BEGIN GENERATED HELP -->
+```
 
-| Option | Description |
-|---|---|
-| `--help`, `-h` | Display help. |
-| `--lang` | The target language. (`cs`\|`go`\|`java`\|`py`\|`ts`) |
-| `--out-dir` | Out directory. Mutually exclusive with `--out-file`. |
-| `--out-file` | Out file. Mutually exclusive with `--out-dir`. |
-| `--dry-run` | Dump every file that would be written to stdout instead. |
+Synopsis
+
+  $ nexus-rpc-gen [--lang LANG] [--out FILE/DIR] SCHEMA_FILE|URL ... 
+                                                                     
+  LANG ... cs|go|java|py|ts                                          
+
+Description
+
+  Generate code from Nexus RPC definition file. 
+
+Options
+
+ -h, --help                                                  Display help.                                              
+ --lang string                                               The target language.                                       
+ --out-dir string                                            Out directory. Mutually exclusive with --out-file.         
+ --out-file string                                           Out file. Mutually exclusive with --out-dir.               
+ --dry-run                                                   Dump every file that would be written to stdout instead.   
+```
 
 Some languages have additional options. Run `nexus-rpc-gen --help` for the full list.
+<!-- END GENERATED HELP -->
 
 ## Definition File
 
