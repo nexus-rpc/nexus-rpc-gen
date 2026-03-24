@@ -27,7 +27,6 @@ services:
           $pythonRef: inventory.types.StockLevel
           $csharpRef: Example.Inventory.StockLevel
           $typescriptRef: ./types.js#StockLevel
-          $ref: '#/types/StockLevel'
 
       reserveStock:
         description: Reserve stock for a pending order.
