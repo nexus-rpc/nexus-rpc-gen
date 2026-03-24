@@ -132,7 +132,7 @@ The format for qualifying a type differs per language — see the [schema](schem
 A schema file for the YAML is at [schemas/nexus-rpc-gen.json](schemas/nexus-rpc-gen.json) and can be used with editors
 to get autocomplete and validation of Nexus YAML files.
 
-For example, in VSCode, add the following to `.vscode/settings.json` (or your user settings):
+For example, in VSCode, add the following to your user settings JSON:
 
 ```json
 {
