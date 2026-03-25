@@ -64,11 +64,27 @@ const updated = before + "\n```\n" + helpBlock + "\n```\n\nSome languages have a
 if (updated !== readme) {
   if (process.env.CI) {
       console.log("README.md contains uncommited checks during CI. Failing.");
-      console.log("New help block:")
-      console.log(`${helpBlock}`)
+      printREADMEDifferences(readme, updated)
       process.exit(1);
   } else {
     writeFileSync(readmePath, updated);
     console.log("README.md CLI help updated.");
   }
+}
+
+function printREADMEDifferences(c, n) {
+    const currentLines = c.split("\n")
+    const newLines = n.split("\n")
+    if (currentLines.length != newLines.length) {
+        console.log(`line length differences current: ${currentLines.length}, new: ${newLines.length}`)
+    }
+
+    console.log("differences:")
+    for (var i = 0; i < currentLines.length; i++) {
+        if (currentLines[i] !== newLines.at(i)) {
+            console.log("*************************")
+            console.log(currentLines[i])
+            console.log(newLines.at(i))
+        }
+    }
 }
