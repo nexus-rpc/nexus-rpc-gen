@@ -17,7 +17,7 @@ const helpText = execFileSync(
   "pnpm",
   ["tsx", "packages/nexus-rpc-gen/src/index.ts", "--help"],
   { cwd: resolve(root, "src"), encoding: "utf-8", shell: process.platform === 'win32' },
-);
+).replace(/\r\n/g, "\n");
 
 // Extract everything from start through the common Options section,
 // stopping before "Options for <lang>".
@@ -42,7 +42,7 @@ const helpBlock = extracted.join("\n");
 
 // Replace in README between markers
 const readmePath = resolve(root, "README.md");
-const readme = readFileSync(readmePath, "utf-8");
+const readme = readFileSync(readmePath, "utf-8").replace(/\r\n/g, "\n");
 
 const startMarker = "<!-- BEGIN GENERATED HELP -->";
 const endMarker = "<!-- END GENERATED HELP -->";
