@@ -59,7 +59,13 @@ if (startIdx === -1 || endIdx === -1) {
 const before = readme.slice(0, startIdx + startMarker.length);
 const after = readme.slice(endIdx);
 
-const updated = before + "\n```\n" + helpBlock + "\n```\n\nSome languages have additional options. Run `nexus-rpc-gen --help` for the full list.\n" + after;
+const updated = before + `
+\`\`\`
+${helpBlock}
+\`\`\`
+
+Some languages have additional options. Run \`nexus-rpc-gen --help\` for the full list.
+` + after;
 
 if (updated !== readme) {
   if (process.env.CI) {
