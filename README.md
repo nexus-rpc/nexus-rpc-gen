@@ -36,7 +36,6 @@ output may look like in different languages.
 
 <!-- BEGIN GENERATED HELP -->
 ```
-
 Synopsis
 
   $ nexus-rpc-gen [--lang LANG] [--out FILE/DIR] SCHEMA_FILE|URL ... 

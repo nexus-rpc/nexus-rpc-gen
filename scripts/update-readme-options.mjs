@@ -30,7 +30,10 @@ for (const line of lines) {
   extracted.push(line);
 }
 
-// Trim trailing blank lines
+while (extracted.length > 0 && extracted[0].trim() === "") {
+    extracted.shift()
+}
+
 while (extracted.length > 0 && extracted.at(-1).trim() === "") {
   extracted.pop();
 }
@@ -62,7 +65,7 @@ if (updated !== readme) {
   if (process.env.CI) {
       console.log("README.md contains uncommited checks during CI. Failing.");
       console.log("New help block:")
-      console.log(`\t${helpBlock}`)
+      console.log(`${helpBlock}`)
       process.exit(1);
   } else {
     writeFileSync(readmePath, updated);
