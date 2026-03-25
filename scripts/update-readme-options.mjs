@@ -9,10 +9,6 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
-if (process.env.CI) {
-  process.exit(0);
-}
-
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = resolve(__dirname, "..");
 
@@ -63,6 +59,11 @@ const after = readme.slice(endIdx);
 const updated = before + "\n```\n" + helpBlock + "\n```\n\nSome languages have additional options. Run `nexus-rpc-gen --help` for the full list.\n" + after;
 
 if (updated !== readme) {
-  writeFileSync(readmePath, updated);
-  console.log("README.md CLI help updated.");
+  if (process.env.CI) {
+      console.log("README.md contains uncommited checks during CI. Failing.");
+      process.exit(1);
+  } else {
+    writeFileSync(readmePath, updated);
+    console.log("README.md CLI help updated.");
+  }
 }
