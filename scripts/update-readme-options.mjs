@@ -61,6 +61,8 @@ const updated = before + "\n```\n" + helpBlock + "\n```\n\nSome languages have a
 if (updated !== readme) {
   if (process.env.CI) {
       console.log("README.md contains uncommited checks during CI. Failing.");
+      console.log("New help block:")
+      console.log(`\t${helpBlock}`)
       process.exit(1);
   } else {
     writeFileSync(readmePath, updated);
