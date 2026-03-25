@@ -10,38 +10,19 @@ import "github.com/nexus-rpc/sdk-go/nexus"
 var InventoryService = struct {
 	ServiceName                             string
 	// Add a new item to the inventory.     
-	AddItem                                 nexus.OperationReference[AddItemInput, AddItemOutput]
+	AddItem                                 nexus.OperationReference[types.AddItemInput, types.AddItemOutput]
 	// Get current stock levels for an item.
-	GetItemStock                            nexus.OperationReference[GetItemStockInput, types.StockLevel]
+	GetItemStock                            nexus.OperationReference[GetItemStockInput, types.GetItemStockOutput]
 	// Reserve stock for a pending order.   
-	ReserveStock                            nexus.OperationReference[types.ReservationRequest, ReserveStockOutput]
+	ReserveStock                            nexus.OperationReference[types.ReservationInput, types.ReservationOutput]
 }{
 	ServiceName:  "InventoryService",
-	AddItem:      nexus.NewOperationReference[AddItemInput, AddItemOutput]("addItem"),
-	GetItemStock: nexus.NewOperationReference[GetItemStockInput, types.StockLevel]("getItemStock"),
-	ReserveStock: nexus.NewOperationReference[types.ReservationRequest, ReserveStockOutput]("reserveStock"),
-}
-
-type AddItemInput struct {
-	// Starting quantity to stock.          
-	InitialQuantity                  int64  `json:"initialQuantity"`
-	// Human-readable item name.            
-	Name                             string `json:"name"`
-	// Stock-keeping unit identifier.       
-	Sku                              string `json:"sku"`
-}
-
-type AddItemOutput struct {
-	// Whether the item was successfully added.     
-	Added                                      bool `json:"added"`
+	AddItem:      nexus.NewOperationReference[types.AddItemInput, types.AddItemOutput]("addItem"),
+	GetItemStock: nexus.NewOperationReference[GetItemStockInput, types.GetItemStockOutput]("getItemStock"),
+	ReserveStock: nexus.NewOperationReference[types.ReservationInput, types.ReservationOutput]("reserveStock"),
 }
 
 type GetItemStockInput struct {
 	// The SKU to look up.       
 	Sku                   string `json:"sku"`
-}
-
-type ReserveStockOutput struct {
-	// Whether the stock was successfully reserved.     
-	Reserved                                       bool `json:"reserved"`
 }

@@ -22,49 +22,19 @@ namespace NexusServices
         /// Add a new item to the inventory.
         /// </summary>
         [NexusOperation("addItem")]
-        AddItemOutput AddItem(AddItemInput input);
+        Example.Inventory.AddItemOutput AddItem(Example.Inventory.AddItemInput input);
 
         /// <summary>
         /// Get current stock levels for an item.
         /// </summary>
         [NexusOperation("getItemStock")]
-        Example.Inventory.StockLevel GetItemStock(GetItemStockInput input);
+        Example.Inventory.GetItemStockOutput GetItemStock(GetItemStockInput input);
 
         /// <summary>
         /// Reserve stock for a pending order.
         /// </summary>
         [NexusOperation("reserveStock")]
         ReserveStockOutput ReserveStock(ReserveStockInput input);
-    }
-
-    public partial class AddItemInput
-    {
-        /// <summary>
-        /// Starting quantity to stock.
-        /// </summary>
-        [JsonPropertyName("initialQuantity")]
-        public long InitialQuantity { get; set; }
-
-        /// <summary>
-        /// Human-readable item name.
-        /// </summary>
-        [JsonPropertyName("name")]
-        public string Name { get; set; }
-
-        /// <summary>
-        /// Stock-keeping unit identifier.
-        /// </summary>
-        [JsonPropertyName("sku")]
-        public string Sku { get; set; }
-    }
-
-    public partial class AddItemOutput
-    {
-        /// <summary>
-        /// Whether the item was successfully added.
-        /// </summary>
-        [JsonPropertyName("added")]
-        public bool Added { get; set; }
     }
 
     public partial class GetItemStockInput

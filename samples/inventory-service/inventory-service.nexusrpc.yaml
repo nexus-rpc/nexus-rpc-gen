@@ -11,59 +11,43 @@ services:
       addItem:
         description: Add a new item to the inventory.
         input:
-          $ref: '#/types/AddItemInput'
+          $goRef: github.com/example/inventory/types.AddItemInput
+          $javaRef: com.example.inventory.AddItemInput
+          $pythonRef: inventory.types.AddItemInput
+          $csharpRef: Example.Inventory.AddItemInput
+          $typescriptRef: ./types.js#AddItemInput
         output:
-          $ref: '#/types/AddItemOutput'
+          $goRef: github.com/example/inventory/types.AddItemOutput
+          $javaRef: com.example.inventory.AddItemOutput
+          $pythonRef: inventory.types.AddItemOutput
+          $csharpRef: Example.Inventory.AddItemOutput
+          $typescriptRef: ./types.js#AddItemOutput
 
       getItemStock:
         description: Get current stock levels for an item.
         input:
           $ref: '#/types/GetItemStockInput'
         output:
-          # Use an existing type in each language for the response, falling
-          # back to a generated type for languages without a $langRef.
-          $goRef: github.com/example/inventory/types.StockLevel
-          $javaRef: com.example.inventory.StockLevel
-          $pythonRef: inventory.types.StockLevel
-          $csharpRef: Example.Inventory.StockLevel
-          $typescriptRef: ./types.js#StockLevel
+          $goRef: github.com/example/inventory/types.GetItemStockOutput
+          $javaRef: com.example.inventory.GetItemStockOutput
+          $pythonRef: inventory.types.GetItemStockOutput
+          $csharpRef: Example.Inventory.GetItemStockOutput
+          $typescriptRef: ./types.js#GetItemStockOutput
 
       reserveStock:
         description: Reserve stock for a pending order.
         input:
           # Use an existing type for Go and Java; other languages will fall
           # back to the generated type from $ref.
-          $goRef: github.com/example/inventory/types.ReservationRequest
-          $javaRef: com.example.inventory.ReservationRequest
+          $goRef: github.com/example/inventory/types.ReservationInput
+          $javaRef: com.example.inventory.ReservationInput
           $ref: '#/types/ReserveStockInput'
         output:
+          $goRef: github.com/example/inventory/types.ReservationOutput
+          $javaRef: com.example.inventory.ReservationOutput
           $ref: '#/types/ReserveStockOutput'
 
 types:
-  AddItemInput:
-    type: object
-    additionalProperties: false
-    properties:
-      sku:
-        description: Stock-keeping unit identifier.
-        type: string
-      name:
-        description: Human-readable item name.
-        type: string
-      initialQuantity:
-        description: Starting quantity to stock.
-        type: integer
-    required: [sku, name, initialQuantity]
-
-  AddItemOutput:
-    type: object
-    additionalProperties: false
-    properties:
-      added:
-        description: Whether the item was successfully added.
-        type: boolean
-    required: [added]
-
   GetItemStockInput:
     type: object
     additionalProperties: false
@@ -72,21 +56,6 @@ types:
         description: The SKU to look up.
         type: string
     required: [sku]
-
-  StockLevel:
-    type: object
-    additionalProperties: false
-    properties:
-      sku:
-        type: string
-      quantity:
-        description: Current quantity in stock.
-        type: integer
-      status:
-        description: Current stock status.
-        type: string
-        enum: [in_stock, low_stock, out_of_stock]
-    required: [sku, quantity, status]
 
   ReserveStockInput:
     type: object

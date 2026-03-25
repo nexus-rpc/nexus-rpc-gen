@@ -7,22 +7,6 @@ from nexusrpc import service, Operation
 import inventory.types
 
 
-class AddItemInput(BaseModel):
-    initial_quantity: int = Field(..., serialization_alias="initialQuantity")
-    """Starting quantity to stock."""
-
-    name: str
-    """Human-readable item name."""
-
-    sku: str
-    """Stock-keeping unit identifier."""
-
-
-class AddItemOutput(BaseModel):
-    added: bool
-    """Whether the item was successfully added."""
-
-
 class GetItemStockInput(BaseModel):
     sku: str
     """The SKU to look up."""
@@ -49,10 +33,10 @@ class InventoryService:
     """An inventory tracking service that demonstrates using $langRef to reference types that
     already exist in your target language instead of generating new ones.
     """
-    add_item: Operation[AddItemInput, AddItemOutput] = Operation(name="addItem")
+    add_item: Operation[inventory.types.AddItemInput, inventory.types.AddItemOutput] = Operation(name="addItem")
     """Add a new item to the inventory."""
 
-    get_item_stock: Operation[GetItemStockInput, inventory.types.StockLevel] = Operation(name="getItemStock")
+    get_item_stock: Operation[GetItemStockInput, inventory.types.GetItemStockOutput] = Operation(name="getItemStock")
     """Get current stock levels for an item."""
 
     reserve_stock: Operation[ReserveStockInput, ReserveStockOutput] = Operation(name="reserveStock")

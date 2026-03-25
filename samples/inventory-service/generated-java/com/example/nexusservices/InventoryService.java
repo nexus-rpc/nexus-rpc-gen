@@ -15,17 +15,17 @@ public interface InventoryService {
    * Add a new item to the inventory.
    */
   @Operation
-  AddItemOutput addItem(AddItemInput input);
+  com.example.inventory.AddItemOutput addItem(com.example.inventory.AddItemInput input);
 
   /**
    * Get current stock levels for an item.
    */
   @Operation
-  com.example.inventory.StockLevel getItemStock(GetItemStockInput input);
+  com.example.inventory.GetItemStockOutput getItemStock(GetItemStockInput input);
 
   /**
    * Reserve stock for a pending order.
    */
   @Operation
-  ReserveStockOutput reserveStock(com.example.inventory.ReservationRequest input);
+  com.example.inventory.ReservationOutput reserveStock(com.example.inventory.ReservationInput input);
 }
