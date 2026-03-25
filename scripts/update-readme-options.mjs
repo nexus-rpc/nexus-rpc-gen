@@ -16,7 +16,7 @@ const root = resolve(__dirname, "..");
 const helpText = execFileSync(
   "pnpm",
   ["tsx", "packages/nexus-rpc-gen/src/index.ts", "--help"],
-  { cwd: resolve(root, "src"), encoding: "utf-8" },
+  { cwd: resolve(root, "src"), encoding: "utf-8", shell: process.platform === 'win32' },
 );
 
 // Extract everything from start through the common Options section,
