@@ -2,37 +2,38 @@
 
 An inventory tracking service demonstrating language-specific type references (`$langRef`).
 
-Some operations reference pre-existing types in specific languages via `$langRef` keys (e.g.
-`$goRef`, `$javaRef`), while others fall back to types generated from the `$ref` definition.
+Every operation references pre-existing types in each target language via `$langRef` keys
+(`$goRef`, `$javaRef`, etc.) instead of generating type definitions. Each language directory
+contains a small set of hand-written models alongside the generated service code.
 
-Here is how the code was generated for each language from this directory:
+## Generation commands
 
 ### C#
 
 ```
-nexus-rpc-gen --lang cs --out-file generated-cs/InventoryService.cs inventory-service.nexusrpc.yaml
+nexus-rpc-gen --lang cs --out-file inventory-cs/InventoryService.cs inventory-service.nexusrpc.yaml
 ```
 
 ### Go
 
 ```
-nexus-rpc-gen --lang go --out-file generated-go/inventory_service.go inventory-service.nexusrpc.yaml
+nexus-rpc-gen --lang go --package services --out-file inventory-go/services/inventory_service.go inventory-service.nexusrpc.yaml
 ```
 
 ### Java
 
 ```
-nexus-rpc-gen --lang java --out-dir generated-java inventory-service.nexusrpc.yaml
+nexus-rpc-gen --lang java --out-dir inventory-java inventory-service.nexusrpc.yaml
 ```
 
 ### Python
 
 ```
-nexus-rpc-gen --lang py --out-file generated-py/inventory_service.py inventory-service.nexusrpc.yaml
+nexus-rpc-gen --lang py --out-file inventory-py/inventory_service.py inventory-service.nexusrpc.yaml
 ```
 
 ### TypeScript
 
 ```
-nexus-rpc-gen --lang ts --out-file generated-ts/inventory-service.ts inventory-service.nexusrpc.yaml
+nexus-rpc-gen --lang ts --out-file inventory-ts/inventory-service.ts inventory-service.nexusrpc.yaml
 ```

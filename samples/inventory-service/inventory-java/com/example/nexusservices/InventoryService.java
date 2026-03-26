@@ -21,11 +21,11 @@ public interface InventoryService {
    * Get current stock levels for an item.
    */
   @Operation
-  com.example.inventory.GetItemStockOutput getItemStock(GetItemStockInput input);
+  com.example.inventory.StockLevel getItemStock(com.example.inventory.StockQuery input);
 
   /**
    * Reserve stock for a pending order.
    */
   @Operation
-  com.example.inventory.ReservationOutput reserveStock(com.example.inventory.ReservationInput input);
+  com.example.inventory.ReservationResult reserveStock(com.example.inventory.ReservationRequest input);
 }

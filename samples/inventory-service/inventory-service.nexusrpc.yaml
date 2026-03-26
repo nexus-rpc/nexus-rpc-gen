@@ -26,57 +26,30 @@ services:
       getItemStock:
         description: Get current stock levels for an item.
         input:
-          $ref: '#/types/GetItemStockInput'
+          $goRef: github.com/example/inventory/types.StockQuery
+          $javaRef: com.example.inventory.StockQuery
+          $pythonRef: inventory.types.StockQuery
+          $csharpRef: Example.Inventory.StockQuery
+          $typescriptRef: ./types.js#StockQuery
         output:
-          $goRef: github.com/example/inventory/types.GetItemStockOutput
-          $javaRef: com.example.inventory.GetItemStockOutput
-          $pythonRef: inventory.types.GetItemStockOutput
-          $csharpRef: Example.Inventory.GetItemStockOutput
-          $typescriptRef: ./types.js#GetItemStockOutput
+          $goRef: github.com/example/inventory/types.StockLevel
+          $javaRef: com.example.inventory.StockLevel
+          $pythonRef: inventory.types.StockLevel
+          $csharpRef: Example.Inventory.StockLevel
+          $typescriptRef: ./types.js#StockLevel
 
       reserveStock:
         description: Reserve stock for a pending order.
         input:
-          # Use an existing type for Go and Java; other languages will fall
-          # back to the generated type from $ref.
-          $goRef: github.com/example/inventory/types.ReservationInput
-          $javaRef: com.example.inventory.ReservationInput
-          $ref: '#/types/ReserveStockInput'
+          $goRef: github.com/example/inventory/types.ReservationRequest
+          $javaRef: com.example.inventory.ReservationRequest
+          $pythonRef: inventory.types.ReservationRequest
+          $csharpRef: Example.Inventory.ReservationRequest
+          $typescriptRef: ./types.js#ReservationRequest
         output:
-          $goRef: github.com/example/inventory/types.ReservationOutput
-          $javaRef: com.example.inventory.ReservationOutput
-          $ref: '#/types/ReserveStockOutput'
+          $goRef: github.com/example/inventory/types.ReservationResult
+          $javaRef: com.example.inventory.ReservationResult
+          $pythonRef: inventory.types.ReservationResult
+          $csharpRef: Example.Inventory.ReservationResult
+          $typescriptRef: ./types.js#ReservationResult
 
-types:
-  GetItemStockInput:
-    type: object
-    additionalProperties: false
-    properties:
-      sku:
-        description: The SKU to look up.
-        type: string
-    required: [sku]
-
-  ReserveStockInput:
-    type: object
-    additionalProperties: false
-    properties:
-      sku:
-        description: The SKU to reserve.
-        type: string
-      quantity:
-        description: Number of units to reserve.
-        type: integer
-      orderId:
-        description: The order this reservation is for.
-        type: string
-    required: [sku, quantity, orderId]
-
-  ReserveStockOutput:
-    type: object
-    additionalProperties: false
-    properties:
-      reserved:
-        description: Whether the stock was successfully reserved.
-        type: boolean
-    required: [reserved]
