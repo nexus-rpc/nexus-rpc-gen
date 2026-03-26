@@ -69,8 +69,9 @@ Some languages have additional options. Run \`nexus-rpc-gen --help\` for the ful
 
 if (updated !== readme) {
   if (process.env.CI) {
-      console.log("README.md contains uncommited checks during CI. Failing.");
-      printREADMEDifferences(readme, updated)
+      console.log("README.md contains uncommited checks during CI. Updated README.md:");
+      console.log(updated)
+      console.log("Failing Build.")
       process.exit(1);
   } else {
     writeFileSync(readmePath, updated);
@@ -78,19 +79,3 @@ if (updated !== readme) {
   }
 }
 
-function printREADMEDifferences(c, n) {
-    const currentLines = c.split("\n")
-    const newLines = n.split("\n")
-    if (currentLines.length != newLines.length) {
-        console.log(`line length differences current: ${currentLines.length}, new: ${newLines.length}`)
-    }
-
-    console.log("differences:")
-    for (var i = 0; i < currentLines.length; i++) {
-        if (currentLines[i] !== newLines.at(i)) {
-            console.log("*************************")
-            console.log(currentLines[i])
-            console.log(newLines.at(i))
-        }
-    }
-}
