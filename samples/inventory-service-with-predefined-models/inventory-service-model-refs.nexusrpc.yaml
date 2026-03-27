@@ -1,0 +1,55 @@
+# yaml-language-server: $schema=../../schemas/nexus-rpc-gen.json
+nexusrpc: 1.0.0
+
+services:
+  InventoryService:
+    description: >-
+      An inventory tracking service that demonstrates using $langRef to
+      reference types that already exist in your target language instead of
+      generating new ones.
+    operations:
+      addItem:
+        description: Add a new item to the inventory.
+        input:
+          $goRef: github.com/example/inventory/types.AddItemInput
+          $javaRef: com.example.inventory.AddItemInput
+          $pythonRef: inventory.types.AddItemInput
+          $csharpRef: Example.Inventory.AddItemInput
+          $typescriptRef: ./types.js#AddItemInput
+        output:
+          $goRef: github.com/example/inventory/types.AddItemOutput
+          $javaRef: com.example.inventory.AddItemOutput
+          $pythonRef: inventory.types.AddItemOutput
+          $csharpRef: Example.Inventory.AddItemOutput
+          $typescriptRef: ./types.js#AddItemOutput
+
+      getItemStock:
+        description: Get current stock levels for an item.
+        input:
+          $goRef: github.com/example/inventory/types.StockQuery
+          $javaRef: com.example.inventory.StockQuery
+          $pythonRef: inventory.types.StockQuery
+          $csharpRef: Example.Inventory.StockQuery
+          $typescriptRef: ./types.js#StockQuery
+        output:
+          $goRef: github.com/example/inventory/types.StockLevel
+          $javaRef: com.example.inventory.StockLevel
+          $pythonRef: inventory.types.StockLevel
+          $csharpRef: Example.Inventory.StockLevel
+          $typescriptRef: ./types.js#StockLevel
+
+      reserveStock:
+        description: Reserve stock for a pending order.
+        input:
+          $goRef: github.com/example/inventory/types.ReservationRequest
+          $javaRef: com.example.inventory.ReservationRequest
+          $pythonRef: inventory.types.ReservationRequest
+          $csharpRef: Example.Inventory.ReservationRequest
+          $typescriptRef: ./types.js#ReservationRequest
+        output:
+          $goRef: github.com/example/inventory/types.ReservationResult
+          $javaRef: com.example.inventory.ReservationResult
+          $pythonRef: inventory.types.ReservationResult
+          $csharpRef: Example.Inventory.ReservationResult
+          $typescriptRef: ./types.js#ReservationResult
+

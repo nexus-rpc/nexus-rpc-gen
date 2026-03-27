@@ -3,6 +3,7 @@
   "type": "module",
   "scripts": {
     "build": "tsc --build",
+    "postbuild": "node ../scripts/update-readme-options.mjs",
     "cli": "tsx packages/nexus-rpc-gen/src/index.ts",
     "build:schema": "pnpm --filter nexus-rpc-gen run build:schema",
     "lint": "eslint packages/*/src/** packages/nexus-rpc-gen-tests/languages/ts/src/**",

@@ -9,27 +9,19 @@ incompatible ways until the generator is marked stable.
 
 ## Installation
 
-Since this is under active development, the project must be manually built with latest stable nodejs, e.g. from the
-`src` directory:
+This generator is under active development, but the alpha version is available with npx.
+
+```bash
+npx nexus-rpc-gen@alpha
+```
+
+This generator can also be built locally with latest stable Node.js from the `src` directory:
 
 ```bash
 pnpm install && pnpm run build
 ```
 
-Then it it can be run via `pnpm tsx src/packages/nexus-rpc-gen/src/index.ts`. The rest of the document assumes this is in
-an executable shell file named `nexus-rpc-gen` for non-Windows:
-
-```bash
-#!/usr/bin/env sh
-pnpm tsx src/packages/nexus-rpc-gen/src/index.ts "$@"
-```
-
-Or `nexus-rpc-gen.bat` for Windows:
-
-```
-@echo off
-pnpm tsx src/packages/nexus-rpc-gen/src/index.ts %*
-```
+Then run via `pnpm tsx src/packages/nexus-rpc-gen/src/index.ts`.
 
 ## Usage
 
@@ -41,6 +33,30 @@ nexus-rpc-gen --lang ts --out-file my-out-file.ts my-service.nexusrpc.yaml
 
 This will generate a `my-out-file.ts` code file from the given YAML definition file. See [samples](samples) for what
 output may look like in different languages.
+
+<!-- BEGIN GENERATED HELP -->
+```
+Synopsis
+
+  $ nexus-rpc-gen [--lang LANG] [--out FILE/DIR] SCHEMA_FILE|URL ... 
+                                                                     
+  LANG ... cs|go|java|py|ts                                          
+
+Description
+
+  Generate code from Nexus RPC definition file. 
+
+Options
+
+ -h, --help                                                  Display help.                                              
+ --lang string                                               The target language.                                       
+ --out-dir string                                            Out directory. Mutually exclusive with --out-file.         
+ --out-file string                                           Out file. Mutually exclusive with --out-dir.               
+ --dry-run                                                   Dump every file that would be written to stdout instead.   
+```
+
+Some languages have additional options. Run `nexus-rpc-gen --help` for the full list.
+<!-- END GENERATED HELP -->
 
 ## Definition File
 
@@ -102,17 +118,20 @@ section. Users are strongly encouraged to make an `object` type for each operati
 section. This provides a future-proof way to extend the input/output with more non-required properties.
 
 In addition to regular JSON schema, the top-level `input` and `output` types can instead have a `$<lang>Ref` key where
-`<lang>` is `csharp`, `go`, `java`, `python`, or `typescript`. If present for the language being generated, that type is
-referenced instead of generating the JSON schema type. This can be used to refer to existing types already in a
-codebase. The format for qualifying a type for each of these can differ, see the [schema](schemas/nexus-rpc-gen.yml) for
-these properties for more details.
+`<lang>` is `csharp`, `go`, `java`, `python`, or `typescript`. If a matching `$<lang>Ref` is present for the language
+being generated, that type is used directly (with the appropriate import) instead of generating the JSON schema type.
+If no `$<lang>Ref` matches, the `$ref` value is used as a fallback. This is useful for referencing types that already
+exist in your codebase.
+
+The format for qualifying a type differs per language — see the [schema](schemas/nexus-rpc-gen.yml) for details and the
+[inventory-service sample](samples/inventory-service) for a full working example.
 
 ### IDE Support
 
 A schema file for the YAML is at [schemas/nexus-rpc-gen.json](schemas/nexus-rpc-gen.json) and can be used with editors
-to get intellisense and validation of Nexus YAML files.
+to get autocomplete and validation of Nexus YAML files.
 
-For example, in VSCode, the following setting can be set in settings JSON:
+For example, in VSCode, add the following to your user settings JSON:
 
 ```json
 {
@@ -124,7 +143,7 @@ For example, in VSCode, the following setting can be set in settings JSON:
 }
 ```
 
-This will make all files with `.nexusrpc.yaml` have proper intellisense and validation while editing.
+This will provide autocomplete and validation for all `.nexusrpc.yaml` files.
 
 ## Development
 
