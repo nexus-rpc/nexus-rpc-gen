@@ -1,0 +1,9 @@
+nexusrpc: 1.0.0
+services:
+  BadRefService:
+    operations:
+      brokenOp:
+        input:
+          $ref: './nonexistent.yaml#/Foo'
+        output:
+          type: string

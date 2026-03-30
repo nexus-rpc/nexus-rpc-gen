@@ -1,0 +1,9 @@
+nexusrpc: 1.0.0
+services:
+  DuplicateService:
+    operations:
+      firstOp:
+        input:
+          type: string
+        output:
+          type: string

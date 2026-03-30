@@ -220,7 +220,7 @@ class TypeScriptRenderAdapter extends RenderAdapter<TypeScriptRenderAccessible> 
       this.render.topLevels,
       "none",
       (t, name, pos) => {
-        if (!t.isPrimitive() || name == "__ALL_TYPES__") {
+        if (!t.isPrimitive() || name.endsWith("/__ALL_TYPES__")) {
           return;
         }
 

@@ -63,7 +63,7 @@ export class GoLanguageWithNexus extends GoTargetLanguage {
       },
       emitTopLevel(original, t, name) {
         // Do not emit __ALL_TYPES__ placeholder
-        if (name.firstProposedName(new Map()) == "__ALL_TYPES__") {
+        if (name.firstProposedName(new Map()).endsWith("/__ALL_TYPES__")) {
           return;
         }
         original(t, name);

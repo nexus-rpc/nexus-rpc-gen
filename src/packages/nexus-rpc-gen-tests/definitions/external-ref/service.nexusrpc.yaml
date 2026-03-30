@@ -1,0 +1,14 @@
+nexusrpc: 1.0.0
+services:
+  ExternalRefService:
+    operations:
+      yamlRefOp:
+        input:
+          $ref: './types.yaml#/Address'
+        output:
+          type: string
+      jsonRefOp:
+        input:
+          type: string
+        output:
+          $ref: './types.json#/PhoneNumber'

@@ -1,0 +1,15 @@
+{
+  "PhoneNumber": {
+    "title": "PhoneNumber",
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "countryCode": {
+        "type": "string"
+      },
+      "number": {
+        "type": "string"
+      }
+    }
+  }
+}

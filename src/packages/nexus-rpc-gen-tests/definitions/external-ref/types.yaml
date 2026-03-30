@@ -1,0 +1,9 @@
+Address:
+  title: Address
+  type: object
+  additionalProperties: false
+  properties:
+    street:
+      type: string
+    city:
+      type: string

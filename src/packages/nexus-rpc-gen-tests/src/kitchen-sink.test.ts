@@ -1,17 +1,17 @@
-import { spawnAsync, type SpawnResult } from "./spawn.js";
+import { runRpcGen, spawnAsync } from "./spawn.js";
 import test from "node:test";
 import { platform } from "node:os";
 
 test("C#", async () => {
   // Run gen
   (
-    await runRpcGen(
+    await runRpcGen([
       "--lang",
       "cs",
       "--out-dir",
       "packages/nexus-rpc-gen-tests/languages/cs/NexusServices",
       "packages/nexus-rpc-gen-tests/definitions/kitchen-sink.nexusrpc.yaml",
-    )
+    ])
   ).assertSuccess();
   // Run C# test suite
   (
@@ -26,7 +26,7 @@ test("C#", async () => {
 test("Go", async () => {
   // Run gen
   (
-    await runRpcGen(
+    await runRpcGen([
       "--lang",
       "go",
       "--package",
@@ -34,7 +34,7 @@ test("Go", async () => {
       "--out-dir",
       "packages/nexus-rpc-gen-tests/languages/go/services",
       "packages/nexus-rpc-gen-tests/definitions/kitchen-sink.nexusrpc.yaml",
-    )
+    ])
   ).assertSuccess();
   // Run Go test suite
   (
@@ -48,13 +48,13 @@ test("Go", async () => {
 test("Java", async () => {
   // Run gen
   (
-    await runRpcGen(
+    await runRpcGen([
       "--lang",
       "java",
       "--out-dir",
       "packages/nexus-rpc-gen-tests/languages/java/src/main/java",
       "packages/nexus-rpc-gen-tests/definitions/kitchen-sink.nexusrpc.yaml",
-    )
+    ])
   ).assertSuccess();
   // Run Java test suite
   const gradle = platform() === "win32" ? "gradlew" : "./gradlew";
@@ -70,13 +70,13 @@ test("Java", async () => {
 test("Python", async () => {
   // Run gen
   (
-    await runRpcGen(
+    await runRpcGen([
       "--lang",
       "py",
       "--out-dir",
       "packages/nexus-rpc-gen-tests/languages/py/services",
       "packages/nexus-rpc-gen-tests/definitions/kitchen-sink.nexusrpc.yaml",
-    )
+    ])
   ).assertSuccess();
 
   // Format, check types, run test
@@ -103,13 +103,13 @@ test("Python", async () => {
 test("TypeScript", async () => {
   // Run gen
   (
-    await runRpcGen(
+    await runRpcGen([
       "--lang",
       "ts",
       "--out-dir",
       "packages/nexus-rpc-gen-tests/languages/ts/src/services",
       "packages/nexus-rpc-gen-tests/definitions/kitchen-sink.nexusrpc.yaml",
-    )
+    ])
   ).assertSuccess();
 
   // Build TS test suite then run it
@@ -135,12 +135,3 @@ test("TypeScript", async () => {
     })
   ).assertSuccess();
 });
-
-function runRpcGen(...arguments_: string[]): Promise<SpawnResult> {
-  return spawnAsync("npm", ["run", "cli", "--", ...arguments_], {
-    shell: true,
-    cwd: "../",
-    env: { NEXUS_IDL_DEBUG: "1", ...process.env },
-    stdio: "inherit",
-  });
-}

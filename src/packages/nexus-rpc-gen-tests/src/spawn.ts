@@ -25,6 +25,18 @@ export class SpawnResult {
   }
 }
 
+export function runRpcGen(
+  arguments_: string[],
+  options?: { stdio?: "inherit" | "pipe" },
+): Promise<SpawnResult> {
+  return spawnAsync("npm", ["run", "cli", "--", ...arguments_], {
+    shell: true,
+    cwd: "../",
+    env: { NEXUS_IDL_DEBUG: "1", ...process.env },
+    stdio: options?.stdio ?? "inherit",
+  });
+}
+
 export function spawnAsync(
   cmd: string,
   arguments_: string[] = [],

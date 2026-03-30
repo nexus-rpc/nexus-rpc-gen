@@ -9,19 +9,25 @@ import {
   type RendererOptions,
   type TargetLanguage,
 } from "quicktype-core";
-import type { DefinitionSchema } from "./definition-schema";
+import type { DefinitionSource } from "./definition-source.js";
 import { PathElementKind } from "quicktype-core/dist/input/PathElement.js";
-import { isPrimitiveTypeKind } from "quicktype-core/dist/Type/index.js";
+import { readFile } from "node:fs/promises";
+import yaml from "yaml";
 
 export interface GeneratorOptions<Lang extends LanguageName = LanguageName> {
   lang: TargetLanguage;
-  schema: DefinitionSchema;
+  definitionSources: DefinitionSource[];
   rendererOptions: RendererOptions<Lang>;
   // Used to help with ideal output filename
   firstFilenameSansExtensions: string;
 }
 
+export interface PreparedSchemaSources {
+  sources: PreparedSchema[];
+}
+
 export interface PreparedSchema {
+  sourceURI: string;
   services: { [key: string]: PreparedService };
   sharedJsonSchema: { types: { [key: string]: any } };
   topLevelJsonSchemaTypes: { [key: string]: any };
@@ -44,8 +50,13 @@ export interface PreparedTypeReference {
   name: string;
 }
 
+export interface MergedSources {
+  services: { [key: string]: PreparedService };
+  topLevelJsonSchemaTypes: { [key: string]: any };
+}
+
 export interface NexusRendererOptions {
-  nexusSchema: PreparedSchema;
+  nexusSchema: MergedSources;
   firstFilenameSansExtensions: string;
 }
 
@@ -64,30 +75,42 @@ export class Generator {
 
   async generate(): Promise<{ [fileName: string]: string }> {
     // Prepare schema
-    const schema = this.prepareSchema();
+    const sources = this.prepareSchemas();
+    const mergedSources: MergedSources = {
+      services: {},
+      topLevelJsonSchemaTypes: {},
+    };
 
     // Build quicktype input
-    const schemaInput = new JSONSchemaInput(new FetchDisabledSchemaStore());
-    const jsonSchema = {
-      ...schema.sharedJsonSchema,
-      ...schema.topLevelJsonSchemaTypes,
-    };
-    await schemaInput.addSource({
-      // TODO(cretz): Give proper filename name here for proper cross-file referencing
-      name: "__ALL_TYPES__",
-      schema: JSON.stringify(jsonSchema),
-    });
-    // Set the top-level types
-    for (const topLevel of Object.keys(schema.topLevelJsonSchemaTypes)) {
-      schemaInput.addTopLevel(
-        topLevel,
-        Ref.parse(`__ALL_TYPES__#/${topLevel}`),
-      );
-    }
-    for (const [name, reference] of Object.entries(
-      schema.topLevelJsonSchemaLocalRefs,
-    )) {
-      schemaInput.addTopLevel(name, Ref.parse(`__ALL_TYPES__${reference}`));
+    const schemaInput = new JSONSchemaInput(new LocalFetchingSchemaStore());
+    for (const schema of sources.sources) {
+      const jsonSchema = {
+        ...schema.sharedJsonSchema,
+        ...schema.topLevelJsonSchemaTypes,
+      };
+      await schemaInput.addSource({
+        // Append __ALL_TYPES__ to make it easier to filter out top level
+        // while rendering
+        name: schema.sourceURI.toString() + "/__ALL_TYPES__",
+        uris: [schema.sourceURI],
+        schema: JSON.stringify(jsonSchema),
+      });
+      // Set the top-level types
+      for (const topLevel of Object.keys(schema.topLevelJsonSchemaTypes)) {
+        schemaInput.addTopLevel(
+          topLevel,
+          Ref.parse(`${schema.sourceURI}#/${topLevel}`),
+        );
+      }
+      for (const [name, reference] of Object.entries(
+        schema.topLevelJsonSchemaLocalRefs,
+      )) {
+        schemaInput.addTopLevel(
+          name,
+          Ref.parse(`${schema.sourceURI}${reference}`),
+        );
+      }
+      mergeSources(mergedSources, schema);
     }
     const inputData = new InputData();
     inputData.addInput(schemaInput);
@@ -95,7 +118,7 @@ export class Generator {
     // Update renderer options with the prepared schema
     const rendererOptions = {
       nexusOptions: {
-        nexusSchema: schema,
+        nexusSchema: mergedSources,
         firstFilenameSansExtensions: this.options.firstFilenameSansExtensions,
       },
       ...this.options.rendererOptions,
@@ -115,50 +138,58 @@ export class Generator {
     return returnValue;
   }
 
-  private prepareSchema(): PreparedSchema {
-    const schema: PreparedSchema = {
-      services: {},
-      sharedJsonSchema: {
-        types: this.options.schema.types ?? {},
-      },
-      topLevelJsonSchemaTypes: {},
-      topLevelJsonSchemaLocalRefs: {},
+  private prepareSchemas(): PreparedSchemaSources {
+    const prepared: PreparedSchemaSources = {
+      sources: [],
     };
-    for (const [serviceName, service] of Object.entries(
-      this.options.schema.services || {},
-    )) {
-      schema.services[serviceName] = {
-        description: service.description,
-        operations: {},
+
+    for (const definitionSource of this.options.definitionSources) {
+      const schema: PreparedSchema = {
+        sourceURI: definitionSource.fileURI.toString(),
+        services: {},
+        sharedJsonSchema: {
+          types: definitionSource.schema.types ?? {},
+        },
+        topLevelJsonSchemaTypes: {},
+        topLevelJsonSchemaLocalRefs: {},
       };
-      for (const [operationName, operation] of Object.entries(
-        service.operations,
+      for (const [serviceName, service] of Object.entries(
+        definitionSource.schema.services ?? {},
       )) {
-        const schemaOp: PreparedOperation = {
-          description: operation.description,
+        schema.services[serviceName] = {
+          description: service.description,
+          operations: {},
         };
-        schema.services[serviceName].operations[operationName] = schemaOp;
-        if (operation.input) {
-          schemaOp.input = this.prepareInOutType(
-            schema,
-            serviceName,
-            operationName,
-            operation.input,
-            "Input",
-          );
-        }
-        if (operation.output) {
-          schemaOp.output = this.prepareInOutType(
-            schema,
-            serviceName,
-            operationName,
-            operation.output,
-            "Output",
-          );
+        for (const [operationName, operation] of Object.entries(
+          service.operations,
+        )) {
+          const schemaOp: PreparedOperation = {
+            description: operation.description,
+          };
+          schema.services[serviceName].operations[operationName] = schemaOp;
+          if (operation.input) {
+            schemaOp.input = this.prepareInOutType(
+              schema,
+              serviceName,
+              operationName,
+              operation.input,
+              "Input",
+            );
+          }
+          if (operation.output) {
+            schemaOp.output = this.prepareInOutType(
+              schema,
+              serviceName,
+              operationName,
+              operation.output,
+              "Output",
+            );
+          }
         }
       }
+      prepared.sources.push(schema);
     }
-    return schema;
+    return prepared;
   }
 
   private prepareInOutType(
@@ -214,9 +245,28 @@ export class Generator {
   }
 }
 
-class FetchDisabledSchemaStore extends JSONSchemaStore {
-  fetch(_address: string): Promise<JSONSchema | undefined> {
-    // TODO(cretz): Support this?
-    throw new Error("External $ref unsupported");
+function mergeSources(dst: MergedSources, source: PreparedSchema): void {
+  for (const name of Object.keys(source.topLevelJsonSchemaTypes)) {
+    if (name in dst.topLevelJsonSchemaTypes) {
+      throw new Error(
+        `Duplicate type "${name}" defined across multiple definition files`,
+      );
+    }
+  }
+  for (const name of Object.keys(source.services)) {
+    if (name in dst.services) {
+      throw new Error(
+        `Duplicate service "${name}" defined across multiple definition files`,
+      );
+    }
+  }
+  Object.assign(dst.topLevelJsonSchemaTypes, source.topLevelJsonSchemaTypes);
+  Object.assign(dst.services, source.services);
+}
+
+class LocalFetchingSchemaStore extends JSONSchemaStore {
+  async fetch(address: string): Promise<JSONSchema | undefined> {
+    const content = await readFile(new URL(address), "utf8");
+    return yaml.parse(content);
   }
 }

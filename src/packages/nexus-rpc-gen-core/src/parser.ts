@@ -1,10 +1,12 @@
 import type { DefinitionSchema } from "./definition-schema.js";
+import type { DefinitionSource } from "./definition-source.js";
 
 import jsonSchema from "../schemas/nexus-rpc-gen.json" with { type: "json" };
 import Ajv from "ajv";
 import addFormats from "ajv-formats";
 import yaml from "yaml";
 import { readFile } from "node:fs/promises";
+import { pathToFileURL } from "node:url";
 
 const ajv = new Ajv({
   allErrors: true,
@@ -17,14 +19,8 @@ const ajv = new Ajv({
 
 addFormats(ajv);
 
-export async function parseFiles(files: string[]): Promise<DefinitionSchema> {
-  // TODO(cretz): Multi-file
-  if (files.length != 1) {
-    throw new Error("Must have only 1 file at this time");
-  }
-
-  // Parse YAML
-  const document = yaml.parse(await readFile(files[0], "utf8"));
+async function parseFile(file: string): Promise<DefinitionSource> {
+  const document = yaml.parse(await readFile(file, "utf8"));
 
   // Validate. We recreate the validator because it carries state.
   const valueFunction = await ajv.compileAsync<DefinitionSchema>(jsonSchema);
@@ -42,6 +38,32 @@ export async function parseFiles(files: string[]): Promise<DefinitionSchema> {
           .join(", "),
     );
   }
+  return { fileURI: pathToFileURL(file), schema: document };
+}
 
-  return document;
+export async function parseFiles(files: string[]): Promise<DefinitionSource[]> {
+  if (files.length === 0) {
+    throw new Error("Must have at least 1 file");
+  }
+
+  const results = await Promise.allSettled(files.map(parseFile));
+  const errors: string[] = [];
+  const sources: DefinitionSource[] = [];
+
+  for (let index = 0; index < results.length; index++) {
+    const result = results[index];
+    if (result.status === "rejected") {
+      errors.push(`${files[index]}: ${result.reason}`);
+    } else {
+      sources.push(result.value);
+    }
+  }
+
+  if (errors.length > 0) {
+    throw new Error(
+      `Failed to parse ${errors.length} file(s):\n${errors.join("\n")}`,
+    );
+  }
+
+  return sources;
 }
