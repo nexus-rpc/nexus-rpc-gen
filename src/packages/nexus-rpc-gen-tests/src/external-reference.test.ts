@@ -1,5 +1,5 @@
 import { runRpcGen } from "./spawn.js";
-import test from "node:test";
+import test, { before, after } from "node:test";
 import assert from "node:assert";
 import { readFile, readdir, rm } from "node:fs/promises";
 import path from "node:path";
@@ -9,20 +9,24 @@ const __dirname =
   import.meta.dirname || path.dirname(fileURLToPath(import.meta.url));
 
 const outputDirectory = "packages/nexus-rpc-gen-tests/languages/external-ref";
+const absoluteOutputDirectory = path.resolve(
+  __dirname,
+  "..",
+  "languages",
+  "external-ref",
+);
 const definitionFile =
   "packages/nexus-rpc-gen-tests/definitions/external-ref/service.nexusrpc.yaml";
 
-test("External $ref resolves from YAML and JSON files", async () => {
-  const absoluteOutputDirectory = path.resolve(
-    __dirname,
-    "..",
-    "languages",
-    "external-ref",
-  );
-
-  // Clean output dir
+before(async () => {
   await rm(absoluteOutputDirectory, { recursive: true, force: true });
+});
 
+after(async () => {
+  await rm(absoluteOutputDirectory, { recursive: true, force: true });
+});
+
+test("External $ref resolves from YAML and JSON files", async () => {
   // Run gen
   (
     await runRpcGen([
@@ -64,7 +68,4 @@ test("External $ref resolves from YAML and JSON files", async () => {
     generated.includes("number"),
     "Generated output should contain number field from JSON external ref",
   );
-
-  // Clean up
-  await rm(absoluteOutputDirectory, { recursive: true, force: true });
 });

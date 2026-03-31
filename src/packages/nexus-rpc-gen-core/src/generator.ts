@@ -126,15 +126,31 @@ export class Generator {
 
     // Run quicktype and return
     const returnValue: { [fileName: string]: string } = {};
-    const results = await quicktypeMultiFile({
-      inputData,
-      lang: this.options.lang,
-      rendererOptions,
-    });
-    results.forEach(
-      (contents, fileName) =>
-        (returnValue[fileName] = contents.lines.join("\n")),
-    );
+    try {
+      const results = await quicktypeMultiFile({
+        inputData,
+        lang: this.options.lang,
+        rendererOptions,
+      });
+      results.forEach(
+        (contents, fileName) =>
+          (returnValue[fileName] = contents.lines.join("\n")),
+      );
+    } catch (error: unknown) {
+      if (
+        error instanceof Error &&
+        "properties" in error &&
+        (error as any).messageName === "SchemaFetchError"
+      ) {
+        // If there is an error with schema fetching, the message
+        // produced by quicktype will use an empty string for the address.
+        const { address, base } = (error as any).properties;
+        throw new Error(
+          `Could not fetch schema "${address}", referred to from ${base}`,
+        );
+      }
+      throw error;
+    }
     return returnValue;
   }
 

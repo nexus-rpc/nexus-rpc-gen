@@ -1,5 +1,5 @@
 import { runRpcGen } from "./spawn.js";
-import test from "node:test";
+import test, { before, after } from "node:test";
 import assert from "node:assert";
 import { readFile, readdir, rm } from "node:fs/promises";
 import path from "node:path";
@@ -9,22 +9,26 @@ const __dirname =
   import.meta.dirname || path.dirname(fileURLToPath(import.meta.url));
 
 const outputDirectory = "packages/nexus-rpc-gen-tests/languages/multifile";
+const absoluteOutputDirectory = path.resolve(
+  __dirname,
+  "..",
+  "languages",
+  "multifile",
+);
 const greetingFile =
   "packages/nexus-rpc-gen-tests/definitions/multifile/greeting.nexusrpc.yaml";
 const echoFile =
   "packages/nexus-rpc-gen-tests/definitions/multifile/echo.nexusrpc.yaml";
 
-test("Multiple nexusrpc files generate services from all files", async () => {
-  const absoluteOutputDirectory = path.resolve(
-    __dirname,
-    "..",
-    "languages",
-    "multifile",
-  );
-
-  // Clean output dir
+before(async () => {
   await rm(absoluteOutputDirectory, { recursive: true, force: true });
+});
 
+after(async () => {
+  await rm(absoluteOutputDirectory, { recursive: true, force: true });
+});
+
+test("Multiple nexusrpc files generate services from all files", async () => {
   // Run gen with both files
   (
     await runRpcGen([
@@ -81,7 +85,4 @@ test("Multiple nexusrpc files generate services from all files", async () => {
     generated.includes("echoed"),
     "Generated output should contain echoed field from EchoResponse type",
   );
-
-  // Clean up
-  await rm(absoluteOutputDirectory, { recursive: true, force: true });
 });

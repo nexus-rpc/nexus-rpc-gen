@@ -1,6 +1,6 @@
 import { existsSync } from "node:fs";
 import { runRpcGen } from "./spawn.js";
-import test from "node:test";
+import test, { before } from "node:test";
 import assert from "node:assert";
 import { rm } from "node:fs/promises";
 import path from "node:path";
@@ -15,18 +15,18 @@ const secondFile =
   "packages/nexus-rpc-gen-tests/definitions/duplicate-service/second.nexusrpc.yaml";
 const outputDirectory =
   "packages/nexus-rpc-gen-tests/languages/duplicate-service";
+const absoluteOutputDirectory = path.resolve(
+  __dirname,
+  "..",
+  "languages",
+  "duplicate-service",
+);
+
+before(async () => {
+  await rm(absoluteOutputDirectory, { recursive: true, force: true });
+});
 
 test("Duplicate service name across files produces an error", async () => {
-  const absoluteOutputDirectory = path.resolve(
-    __dirname,
-    "..",
-    "languages",
-    "duplicate-service",
-  );
-
-  // Clean output dir if it exists
-  await rm(absoluteOutputDirectory, { recursive: true, force: true });
-
   const result = await runRpcGen(
     ["--lang", "ts", "--out-dir", outputDirectory, firstFile, secondFile],
     { stdio: "pipe" },

@@ -47,21 +47,26 @@ export async function parseFiles(files: string[]): Promise<DefinitionSource[]> {
   }
 
   const results = await Promise.allSettled(files.map(parseFile));
-  const errors: string[] = [];
+  const errors: Error[] = [];
   const sources: DefinitionSource[] = [];
 
   for (let index = 0; index < results.length; index++) {
     const result = results[index];
     if (result.status === "rejected") {
-      errors.push(`${files[index]}: ${result.reason}`);
+      errors.push(
+        new Error(`${files[index]}: ${result.reason}`, {
+          cause: result.reason,
+        }),
+      );
     } else {
       sources.push(result.value);
     }
   }
 
   if (errors.length > 0) {
-    throw new Error(
-      `Failed to parse ${errors.length} file(s):\n${errors.join("\n")}`,
+    throw new AggregateError(
+      errors,
+      `Failed to parse ${errors.length} file(s)`,
     );
   }
 
