@@ -245,23 +245,29 @@ export class Generator {
   }
 }
 
-function mergeSources(dst: MergedSources, source: PreparedSchema): void {
+function mergeSources(
+  destination: MergedSources,
+  source: PreparedSchema,
+): void {
   for (const name of Object.keys(source.topLevelJsonSchemaTypes)) {
-    if (name in dst.topLevelJsonSchemaTypes) {
+    if (name in destination.topLevelJsonSchemaTypes) {
       throw new Error(
         `Duplicate type "${name}" defined across multiple definition files`,
       );
     }
   }
   for (const name of Object.keys(source.services)) {
-    if (name in dst.services) {
+    if (name in destination.services) {
       throw new Error(
         `Duplicate service "${name}" defined across multiple definition files`,
       );
     }
   }
-  Object.assign(dst.topLevelJsonSchemaTypes, source.topLevelJsonSchemaTypes);
-  Object.assign(dst.services, source.services);
+  Object.assign(
+    destination.topLevelJsonSchemaTypes,
+    source.topLevelJsonSchemaTypes,
+  );
+  Object.assign(destination.services, source.services);
 }
 
 class LocalFetchingSchemaStore extends JSONSchemaStore {
