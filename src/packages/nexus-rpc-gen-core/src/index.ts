@@ -5,4 +5,5 @@ export { GoLanguageWithNexus } from "./language-go.js";
 export { JavaLanguageWithNexus } from "./language-java.js";
 export { PythonLanguageWithNexus } from "./language-python.js";
 export { TypeScriptLanguageWithNexus } from "./language-typescript.js";
+export type { DefinitionSource } from "./definition-source.js";
 export { parseFiles } from "./parser.js";

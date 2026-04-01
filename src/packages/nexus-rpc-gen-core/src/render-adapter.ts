@@ -8,13 +8,12 @@ import {
 import {
   getNexusRendererOptions,
   type NexusRendererOptions,
-  type PreparedSchema,
+  type MergedSources,
 } from "./generator.js";
 import { proxyWithOverrides } from "./utility.js";
 import type {
   BlankLineConfig,
   ForEachPosition,
-  Renderer,
 } from "quicktype-core/dist/Renderer.js";
 import type {
   ClassProperty,
@@ -42,7 +41,7 @@ export abstract class RenderAdapter<AccessibleRenderer> {
     this.nexusRendererOptions = getNexusRendererOptions(rendererOptions);
   }
 
-  public get schema(): PreparedSchema {
+  public get schema(): MergedSources {
     return this.nexusRendererOptions.nexusSchema;
   }
 

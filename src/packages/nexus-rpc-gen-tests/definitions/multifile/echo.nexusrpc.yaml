@@ -1,0 +1,27 @@
+nexusrpc: 1.0.0
+services:
+  EchoService:
+    description: A simple echo service
+    operations:
+      echo:
+        input:
+          $ref: '#/types/EchoRequest'
+        output:
+          $ref: '#/types/EchoResponse'
+types:
+  EchoRequest:
+    title: EchoRequest
+    type: object
+    additionalProperties: false
+    properties:
+      payload:
+        type: string
+  EchoResponse:
+    title: EchoResponse
+    type: object
+    additionalProperties: false
+    properties:
+      payload:
+        type: string
+      echoed:
+        type: boolean

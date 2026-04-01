@@ -74,12 +74,12 @@ async function main(argv: string[]) {
   rawOptions = commandLineArgs(optionDefs, { argv });
 
   // Parse/validate YAML files
-  const schema = await parseFiles(rawOptions.files);
+  const sources = await parseFiles(rawOptions.files);
 
   // Convert args to generator options structure
   const genOptions: GeneratorOptions = {
     lang,
-    schema,
+    definitionSources: sources,
     rendererOptions: {},
     firstFilenameSansExtensions: path
       .basename(rawOptions.files[0])

@@ -1,0 +1,21 @@
+nexusrpc: 1.0.0
+services:
+  GreetingService:
+    description: A simple greeting service
+    operations:
+      sayHello:
+        input:
+          type: string
+        output:
+          $ref: '#/types/Greeting'
+types:
+  Greeting:
+    title: Greeting
+    type: object
+    additionalProperties: false
+    properties:
+      message:
+        type: string
+      timestamp:
+        type: string
+        format: date-time
