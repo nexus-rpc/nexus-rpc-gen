@@ -1,6 +1,6 @@
 {
   "name": "@nexus-rpc/gen-core",
-  "version": "0.1.0-alpha.3",
+  "version": "0.1.0-alpha.4",
   "description": "Nexus code generation (core library)",
   "author": "Temporal Technologies Inc. <sdk@temporal.io>",
   "license": "MIT",
