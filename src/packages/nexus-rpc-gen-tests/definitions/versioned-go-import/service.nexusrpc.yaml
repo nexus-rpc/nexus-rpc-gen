@@ -1,0 +1,19 @@
+# yaml-language-server: $schema=../../../../../schemas/nexus-rpc-gen.json
+nexusrpc: 1.0.0
+services:
+  WorkflowService:
+    operations:
+      signalWithStart:
+        input:
+          $goRef: go.temporal.io/api/workflowservice/v1.SignalWithStartWorkflowExecutionRequest
+          $ref: '#/types/GenericInput'
+        output:
+          $goRef: go.temporal.io/api/workflowservice/v1.SignalWithStartWorkflowExecutionResponse
+          $ref: '#/types/GenericOutput'
+types:
+  GenericInput:
+    type: object
+    additionalProperties: false
+  GenericOutput:
+    type: object
+    additionalProperties: false

@@ -82,6 +82,16 @@ export class GoLanguageWithNexus extends GoTargetLanguage {
   }
 }
 
+// Go convention: a path component matching /^v\d+$/ is a major version suffix
+// (e.g. "v1", "v2"). The actual package name is the preceding component, so Go
+// will resolve the identifier from the package declaration rather than the path.
+// An explicit alias forces Go to use the path component as the identifier, which
+// matches the generated code that references e.g. v1.SomeType.
+function needsExplicitAlias(mport: string, alias: string): boolean {
+  const lastComponent = mport.split("/").pop()!;
+  return /^v\d+$/.test(lastComponent) || alias !== lastComponent;
+}
+
 type GoRenderAccessible = Omit<GoRenderer, "emitTypesAndSupport"> &
   RenderAccessible & {
     readonly _options: OptionValues<typeof goOptions>;
@@ -193,7 +203,7 @@ class GoRenderAdapter extends RenderAdapter<GoRenderAccessible> {
     for (const [mport, alias] of imports.filter(
       ([mport, _]) => !mport.includes("."),
     )) {
-      const aliasPiece = alias != mport.split("/").pop()! ? `${alias} ` : "";
+      const aliasPiece = needsExplicitAlias(mport, alias) ? `${alias} ` : "";
       // Must be a single string so it caches the full line for "once" so the
       // Quicktype renderer doesn't render its own forms
       this.render.emitLineOnce(`import ${aliasPiece}"${mport}"`);
@@ -202,7 +212,7 @@ class GoRenderAdapter extends RenderAdapter<GoRenderAccessible> {
     for (const [mport, alias] of imports.filter(([mport, _]) =>
       mport.includes("."),
     )) {
-      const aliasPiece = alias != mport.split("/").pop()! ? `${alias} ` : "";
+      const aliasPiece = needsExplicitAlias(mport, alias) ? `${alias} ` : "";
       this.render.emitLineOnce(`import ${aliasPiece}"${mport}"`);
     }
 
