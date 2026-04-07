@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional
 from datetime import datetime
 from nexusrpc import service, Operation
@@ -20,39 +20,49 @@ class KitchenSinkServiceComplexArgComplexResultInlineInput(BaseModel):
 class KitchenSinkServiceComplexArgComplexResultInlineOutput(BaseModel):
     """Output type"""
 
-    character_count: Optional[int] = Field(None, serialization_alias="characterCount")
+    model_config = ConfigDict(populate_by_name=True)
+
+    character_count: Optional[int] = Field(None, alias="characterCount")
     """Count of characters"""
 
 
 class SharedObject(BaseModel):
-    some_field: Optional[int] = Field(None, serialization_alias="someField")
+    model_config = ConfigDict(populate_by_name=True)
+
+    some_field: Optional[int] = Field(None, alias="someField")
 
 
 class ComplexInput(BaseModel):
-    self_ref: Optional["ComplexInput"] = Field(None, serialization_alias="selfRef")
-    some_shared_obj: Optional[SharedObject] = Field(
-        None, serialization_alias="someSharedObj"
-    )
+    model_config = ConfigDict(populate_by_name=True)
+
+    self_ref: Optional['ComplexInput'] = Field(None, alias="selfRef")
+    some_shared_obj: Optional[SharedObject] = Field(None, alias="someSharedObj")
 
 
 class ComplexOutput(BaseModel):
-    self_ref: Optional["ComplexOutput"] = Field(None, serialization_alias="selfRef")
-    some_shared_obj: Optional[SharedObject] = Field(
-        None, serialization_alias="someSharedObj"
-    )
+    model_config = ConfigDict(populate_by_name=True)
+
+    self_ref: Optional['ComplexOutput'] = Field(None, alias="selfRef")
+    some_shared_obj: Optional[SharedObject] = Field(None, alias="someSharedObj")
 
 
 class StrangeItem(BaseModel):
-    some_field: Optional[int] = Field(None, serialization_alias="someField")
+    model_config = ConfigDict(populate_by_name=True)
+
+    some_field: Optional[int] = Field(None, alias="someField")
 
 
 class PurpleStrangeItem(BaseModel):
-    some_field: Optional[int] = Field(None, serialization_alias="someField")
+    model_config = ConfigDict(populate_by_name=True)
+
+    some_field: Optional[int] = Field(None, alias="someField")
 
 
 class DateInput(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
     date: Optional[datetime] = None
-    date_time: Optional[datetime] = Field(None, serialization_alias="dateTime")
+    date_time: Optional[datetime] = Field(None, alias="dateTime")
     time: Optional[datetime] = None
 
 
@@ -60,31 +70,20 @@ class DateInput(BaseModel):
 class KitchenSinkService:
     """A service for all types of operations"""
 
-    scalar_arg_scalar_result: Operation[str, int] = Operation(
-        name="scalarArgScalarResult"
-    )
+    scalar_arg_scalar_result: Operation[str, int] = Operation(name="scalarArgScalarResult")
     """Counts the characters in the string"""
 
-    complex_arg_complex_result_inline: Operation[
-        KitchenSinkServiceComplexArgComplexResultInlineInput,
-        KitchenSinkServiceComplexArgComplexResultInlineOutput,
-    ] = Operation(name="complexArgComplexResultInline")
+    complex_arg_complex_result_inline: Operation[KitchenSinkServiceComplexArgComplexResultInlineInput, KitchenSinkServiceComplexArgComplexResultInlineOutput] = Operation(name="complexArgComplexResultInline")
     """Counts the characters in a string"""
 
-    scalar_arg_scalar_result_external: Operation[str, int] = Operation(
-        name="scalarArgScalarResultExternal"
-    )
+    scalar_arg_scalar_result_external: Operation[str, int] = Operation(name="scalarArgScalarResultExternal")
 
-    complex_arg_complex_result_external: Operation[ComplexInput, ComplexOutput] = (
-        Operation(name="complexArgComplexResultExternal")
-    )
+    complex_arg_complex_result_external: Operation[ComplexInput, ComplexOutput] = Operation(name="complexArgComplexResultExternal")
 
 
 @service(name="Strange{Item}")
 class StrangeItemService:
-    strange_item: Operation[StrangeItem, PurpleStrangeItem] = Operation(
-        name="Strange{Item}"
-    )
+    strange_item: Operation[StrangeItem, PurpleStrangeItem] = Operation(name="Strange{Item}")
 
     strange_item2: Operation[None, None] = Operation(name="StrangeItem")
 
@@ -101,13 +100,9 @@ class ReservedWordService:
 
 @service
 class ExistingTypesService:
-    specific_types_for_some_langs: Operation[
-        services.types.MyExistingType, ComplexOutput
-    ] = Operation(name="specificTypesForSomeLangs")
+    specific_types_for_some_langs: Operation[services.types.MyExistingType, ComplexOutput] = Operation(name="specificTypesForSomeLangs")
 
-    specific_types_for_other_langs: Operation[ComplexInput, collections.deque] = (
-        Operation(name="specificTypesForOtherLangs")
-    )
+    specific_types_for_other_langs: Operation[ComplexInput, collections.deque] = Operation(name="specificTypesForOtherLangs")
 
 
 @service

@@ -208,11 +208,26 @@ class PythonRenderAdapter extends RenderAdapter<PythonRenderAccessible> {
         this.render.emitLine("pass");
         return;
       }
+      // Check if any property needs an alias
+      let hasAlias = false;
+      for (const [jsonName] of t.getProperties()) {
+        if (this.propertyNamer.nameStyle(jsonName) !== jsonName) {
+          hasAlias = true;
+          break;
+        }
+      }
+      if (hasAlias) {
+        this.render.emitLine(
+          "model_config = ",
+          this.render.withImport("pydantic", "ConfigDict"),
+          "(populate_by_name=True)",
+        );
+        this.render.ensureBlankLine();
+      }
       this.render.forEachClassProperty(t, "none", (name, jsonName, cp) => {
         // Get the type string and append a pydantic Field to it if the name
         // doesn't match the JSON name.
         let typeSource = this.render.pythonType(cp.type, true);
-        // const fieldName = name.namingFunction.nameStyle(name.firstProposedName(emptyNameMap));
         const fieldName = this.render.sourcelikeToString(name);
         if (fieldName != jsonName) {
           // Ellipsis means no default. In optional situations, typeSource has a
@@ -228,7 +243,7 @@ class PythonRenderAdapter extends RenderAdapter<PythonRenderAccessible> {
             this.render.withImport("pydantic", "Field"),
             "(",
             fieldDefault,
-            ", serialization_alias=",
+            ", alias=",
             this.render.string(jsonName),
             ")",
           ];
