@@ -49,11 +49,19 @@ test("Versioned Go import path gets explicit alias", async () => {
     "utf8",
   );
 
-  // Versioned path: last component is "v1" which doesn't match the package name
-  // "workflowservice", so an explicit alias must be emitted so Go uses "v1" as
-  // the identifier (matching the generated code that references v1.SomeType).
+  // Versioned path: last component "v1" is combined with the parent component to
+  // form the alias (e.g. "workflowservicev1"). An explicit alias is required so
+  // Go uses it as the identifier rather than the package declaration name.
   assert.ok(
-    generated.includes(`import v1 "go.temporal.io/api/workflowservice/v1"`),
-    `Expected explicit alias for versioned import, got:\n${generated}`,
+    generated.includes(
+      `import workflowservicev1 "go.temporal.io/api/workflowservice/v1"`,
+    ),
+    `Expected explicit alias for workflowservice versioned import, got:\n${generated}`,
+  );
+  assert.ok(
+    generated.includes(
+      `import operatorservicev1 "go.temporal.io/api/operatorservice/v1"`,
+    ),
+    `Expected explicit alias for operatorservice versioned import, got:\n${generated}`,
   );
 });

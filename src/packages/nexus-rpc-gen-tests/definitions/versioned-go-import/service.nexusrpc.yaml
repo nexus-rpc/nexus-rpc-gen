@@ -10,6 +10,15 @@ services:
         output:
           $goRef: go.temporal.io/api/workflowservice/v1.SignalWithStartWorkflowExecutionResponse
           $ref: '#/types/GenericOutput'
+  OperatorService:
+    operations:
+      addSearchAttributes:
+        input:
+          $goRef: go.temporal.io/api/operatorservice/v1.AddSearchAttributesRequest
+          $ref: '#/types/GenericInput'
+        output:
+          $goRef: go.temporal.io/api/operatorservice/v1.AddSearchAttributesResponse
+          $ref: '#/types/GenericOutput'
 types:
   GenericInput:
     type: object

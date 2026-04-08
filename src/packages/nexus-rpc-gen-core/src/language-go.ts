@@ -85,11 +85,20 @@ export class GoLanguageWithNexus extends GoTargetLanguage {
 // Go convention: a path component matching /^v\d+$/ is a major version suffix
 // (e.g. "v1", "v2"). The actual package name is the preceding component, so Go
 // will resolve the identifier from the package declaration rather than the path.
-// An explicit alias forces Go to use the path component as the identifier, which
-// matches the generated code that references e.g. v1.SomeType.
+// For versioned paths, combine the parent component and version (e.g.
+// ".../workflowservice/v1" → "workflowservicev1") so the alias is both unambiguous
+// and self-documenting. An explicit alias is required to override Go's default.
+function aliasForImport(mport: string): string {
+  const parts = mport.split("/");
+  const last = parts[parts.length - 1];
+  if (/^v\d+$/.test(last) && parts.length >= 2) {
+    return `${parts[parts.length - 2]}${last}`;
+  }
+  return last;
+}
+
 function needsExplicitAlias(mport: string, alias: string): boolean {
-  const lastComponent = mport.split("/").pop()!;
-  return /^v\d+$/.test(lastComponent) || alias !== lastComponent;
+  return alias !== mport.split("/").pop()!;
 }
 
 type GoRenderAccessible = Omit<GoRenderer, "emitTypesAndSupport"> &
@@ -149,7 +158,7 @@ class GoRenderAdapter extends RenderAdapter<GoRenderAccessible> {
       }
       origImports.add("github.com/nexus-rpc/sdk-go/nexus");
       for (const mport of origImports) {
-        this._imports[mport] = mport.split("/").pop()!;
+        this._imports[mport] = aliasForImport(mport);
       }
 
       // Add any external type reference pre-last-dots as imports
@@ -166,7 +175,7 @@ class GoRenderAdapter extends RenderAdapter<GoRenderAccessible> {
           const mport = externalType.slice(0, lastDot);
           if (!Object.hasOwn(this._imports, mport)) {
             // Append number until an unused alias is found
-            const origAlias = mport.split("/").pop()!;
+            const origAlias = aliasForImport(mport);
             let alias = origAlias;
             let number_ = 0;
             while (Object.values(this._imports).includes(alias)) {
