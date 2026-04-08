@@ -3,7 +3,24 @@
 from __future__ import annotations
 
 from nexusrpc import service, Operation
+from pydantic import BaseModel, model_validator
+from typing import Any, get_origin
 import inventory.types
+
+
+class _NexusBase(BaseModel):
+    @model_validator(mode="before")
+    @classmethod
+    def _coerce_null_lists(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            for name, field in cls.model_fields.items():
+                if get_origin(field.annotation) is list:
+                    key = field.alias or name
+                    if key in data and data[key] is None:
+                        data[key] = []
+                    elif name in data and data[name] is None:
+                        data[name] = []
+        return data
 
 
 @service

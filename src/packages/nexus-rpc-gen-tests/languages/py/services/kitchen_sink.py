@@ -2,22 +2,37 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, ConfigDict, Field
-from typing import Optional
+from typing import Optional, Any, get_origin
+from pydantic import ConfigDict, Field, BaseModel, model_validator
 from datetime import datetime
 from nexusrpc import service, Operation
 import collections
 import services.types
 
 
-class KitchenSinkServiceComplexArgComplexResultInlineInput(BaseModel):
+class _NexusBase(BaseModel):
+    @model_validator(mode="before")
+    @classmethod
+    def _coerce_null_lists(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            for name, field in cls.model_fields.items():
+                if get_origin(field.annotation) is list:
+                    key = field.alias or name
+                    if key in data and data[key] is None:
+                        data[key] = []
+                    elif name in data and data[name] is None:
+                        data[name] = []
+        return data
+
+
+class KitchenSinkServiceComplexArgComplexResultInlineInput(_NexusBase):
     """Input type"""
 
     string: Optional[str] = None
     """String to count"""
 
 
-class KitchenSinkServiceComplexArgComplexResultInlineOutput(BaseModel):
+class KitchenSinkServiceComplexArgComplexResultInlineOutput(_NexusBase):
     """Output type"""
 
     model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
@@ -26,39 +41,39 @@ class KitchenSinkServiceComplexArgComplexResultInlineOutput(BaseModel):
     """Count of characters"""
 
 
-class SharedObject(BaseModel):
+class SharedObject(_NexusBase):
     model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
 
     some_field: Optional[int] = Field(None, alias="someField")
 
 
-class ComplexInput(BaseModel):
+class ComplexInput(_NexusBase):
     model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
 
     self_ref: Optional["ComplexInput"] = Field(None, alias="selfRef")
     some_shared_obj: Optional[SharedObject] = Field(None, alias="someSharedObj")
 
 
-class ComplexOutput(BaseModel):
+class ComplexOutput(_NexusBase):
     model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
 
     self_ref: Optional["ComplexOutput"] = Field(None, alias="selfRef")
     some_shared_obj: Optional[SharedObject] = Field(None, alias="someSharedObj")
 
 
-class StrangeItem(BaseModel):
+class StrangeItem(_NexusBase):
     model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
 
     some_field: Optional[int] = Field(None, alias="someField")
 
 
-class PurpleStrangeItem(BaseModel):
+class PurpleStrangeItem(_NexusBase):
     model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
 
     some_field: Optional[int] = Field(None, alias="someField")
 
 
-class DateInput(BaseModel):
+class DateInput(_NexusBase):
     model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
 
     date: Optional[datetime] = None

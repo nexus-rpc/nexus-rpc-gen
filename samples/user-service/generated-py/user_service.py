@@ -2,19 +2,34 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, ConfigDict, Field
-from typing import Optional
+from pydantic import ConfigDict, Field, BaseModel, model_validator
+from typing import Optional, Any, get_origin
 from nexusrpc import service, Operation
 
 
-class GetUserInput(BaseModel):
+class _NexusBase(BaseModel):
+    @model_validator(mode="before")
+    @classmethod
+    def _coerce_null_lists(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            for name, field in cls.model_fields.items():
+                if get_origin(field.annotation) is list:
+                    key = field.alias or name
+                    if key in data and data[key] is None:
+                        data[key] = []
+                    elif name in data and data[name] is None:
+                        data[name] = []
+        return data
+
+
+class GetUserInput(_NexusBase):
     model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
 
     user_id: str = Field(..., alias="userId")
     """User ID for the user."""
 
 
-class User(BaseModel):
+class User(_NexusBase):
     """A user."""
 
     model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
@@ -26,19 +41,19 @@ class User(BaseModel):
     """User ID for the user."""
 
 
-class GetUserOutput(BaseModel):
+class GetUserOutput(_NexusBase):
     user: User
 
 
-class SetUserInput(BaseModel):
+class SetUserInput(_NexusBase):
     user: User
 
 
-class SetUserOutput(BaseModel):
+class SetUserOutput(_NexusBase):
     user: User
 
 
-class DeleteUserInput(BaseModel):
+class DeleteUserInput(_NexusBase):
     model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
 
     user_id: str = Field(..., alias="userId")
