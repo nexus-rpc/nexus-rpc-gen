@@ -82,6 +82,25 @@ export class GoLanguageWithNexus extends GoTargetLanguage {
   }
 }
 
+// Go convention: a path component matching /^v\d+$/ is a major version suffix
+// (e.g. "v1", "v2"). The actual package name is the preceding component, so Go
+// will resolve the identifier from the package declaration rather than the path.
+// For versioned paths, combine the parent component and version (e.g.
+// ".../workflowservice/v1" → "workflowservicev1") so the alias is both unambiguous
+// and self-documenting. An explicit alias is required to override Go's default.
+function aliasForImport(mport: string): string {
+  const parts = mport.split("/");
+  const last = parts[parts.length - 1];
+  if (/^v\d+$/.test(last) && parts.length >= 2) {
+    return `${parts[parts.length - 2]}${last}`;
+  }
+  return last;
+}
+
+function needsExplicitAlias(mport: string, alias: string): boolean {
+  return alias !== mport.split("/").pop()!;
+}
+
 type GoRenderAccessible = Omit<GoRenderer, "emitTypesAndSupport"> &
   RenderAccessible & {
     readonly _options: OptionValues<typeof goOptions>;
@@ -139,7 +158,7 @@ class GoRenderAdapter extends RenderAdapter<GoRenderAccessible> {
       }
       origImports.add("github.com/nexus-rpc/sdk-go/nexus");
       for (const mport of origImports) {
-        this._imports[mport] = mport.split("/").pop()!;
+        this._imports[mport] = aliasForImport(mport);
       }
 
       // Add any external type reference pre-last-dots as imports
@@ -156,7 +175,7 @@ class GoRenderAdapter extends RenderAdapter<GoRenderAccessible> {
           const mport = externalType.slice(0, lastDot);
           if (!Object.hasOwn(this._imports, mport)) {
             // Append number until an unused alias is found
-            const origAlias = mport.split("/").pop()!;
+            const origAlias = aliasForImport(mport);
             let alias = origAlias;
             let number_ = 0;
             while (Object.values(this._imports).includes(alias)) {
@@ -193,7 +212,7 @@ class GoRenderAdapter extends RenderAdapter<GoRenderAccessible> {
     for (const [mport, alias] of imports.filter(
       ([mport, _]) => !mport.includes("."),
     )) {
-      const aliasPiece = alias != mport.split("/").pop()! ? `${alias} ` : "";
+      const aliasPiece = needsExplicitAlias(mport, alias) ? `${alias} ` : "";
       // Must be a single string so it caches the full line for "once" so the
       // Quicktype renderer doesn't render its own forms
       this.render.emitLineOnce(`import ${aliasPiece}"${mport}"`);
@@ -202,7 +221,7 @@ class GoRenderAdapter extends RenderAdapter<GoRenderAccessible> {
     for (const [mport, alias] of imports.filter(([mport, _]) =>
       mport.includes("."),
     )) {
-      const aliasPiece = alias != mport.split("/").pop()! ? `${alias} ` : "";
+      const aliasPiece = needsExplicitAlias(mport, alias) ? `${alias} ` : "";
       this.render.emitLineOnce(`import ${aliasPiece}"${mport}"`);
     }
 
