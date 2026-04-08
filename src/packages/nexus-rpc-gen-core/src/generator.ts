@@ -58,6 +58,7 @@ export interface MergedSources {
 export interface NexusRendererOptions {
   nexusSchema: MergedSources;
   firstFilenameSansExtensions: string;
+  temporalNexusPayloadCodecSupport: boolean;
 }
 
 export function getNexusRendererOptions(
@@ -120,6 +121,11 @@ export class Generator {
       nexusOptions: {
         nexusSchema: mergedSources,
         firstFilenameSansExtensions: this.options.firstFilenameSansExtensions,
+        temporalNexusPayloadCodecSupport: Boolean(
+          (this.options.rendererOptions as Record<string, unknown>)[
+            "temporal-nexus-payload-codec-support"
+          ],
+        ),
       },
       ...this.options.rendererOptions,
     };

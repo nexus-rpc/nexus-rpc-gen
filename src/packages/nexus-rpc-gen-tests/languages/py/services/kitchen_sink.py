@@ -20,39 +20,35 @@ class KitchenSinkServiceComplexArgComplexResultInlineInput(BaseModel):
 class KitchenSinkServiceComplexArgComplexResultInlineOutput(BaseModel):
     """Output type"""
 
-    character_count: Optional[int] = Field(None, serialization_alias="characterCount")
+    character_count: Optional[int] = Field(None, alias="characterCount")
     """Count of characters"""
 
 
 class SharedObject(BaseModel):
-    some_field: Optional[int] = Field(None, serialization_alias="someField")
+    some_field: Optional[int] = Field(None, alias="someField")
 
 
 class ComplexInput(BaseModel):
-    self_ref: Optional["ComplexInput"] = Field(None, serialization_alias="selfRef")
-    some_shared_obj: Optional[SharedObject] = Field(
-        None, serialization_alias="someSharedObj"
-    )
+    self_ref: Optional["ComplexInput"] = Field(None, alias="selfRef")
+    some_shared_obj: Optional[SharedObject] = Field(None, alias="someSharedObj")
 
 
 class ComplexOutput(BaseModel):
-    self_ref: Optional["ComplexOutput"] = Field(None, serialization_alias="selfRef")
-    some_shared_obj: Optional[SharedObject] = Field(
-        None, serialization_alias="someSharedObj"
-    )
+    self_ref: Optional["ComplexOutput"] = Field(None, alias="selfRef")
+    some_shared_obj: Optional[SharedObject] = Field(None, alias="someSharedObj")
 
 
 class StrangeItem(BaseModel):
-    some_field: Optional[int] = Field(None, serialization_alias="someField")
+    some_field: Optional[int] = Field(None, alias="someField")
 
 
 class PurpleStrangeItem(BaseModel):
-    some_field: Optional[int] = Field(None, serialization_alias="someField")
+    some_field: Optional[int] = Field(None, alias="someField")
 
 
 class DateInput(BaseModel):
     date: Optional[datetime] = None
-    date_time: Optional[datetime] = Field(None, serialization_alias="dateTime")
+    date_time: Optional[datetime] = Field(None, alias="dateTime")
     time: Optional[datetime] = None
 
 
