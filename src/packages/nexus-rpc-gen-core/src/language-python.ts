@@ -1,12 +1,15 @@
 import {
+  ArrayType,
   ClassType,
   ConvenienceRenderer,
+  MapType,
   Name,
   Namer,
   pythonOptions,
   PythonRenderer,
   PythonTargetLanguage,
   Type,
+  UnionType,
   type LanguageName,
   type OptionValues,
   type RenderContext,
@@ -44,15 +47,12 @@ export class PythonLanguageWithNexus extends PythonTargetLanguage {
         adapter.render.emitLine("from __future__ import annotations");
         adapter.render.ensureBlankLine();
         original(givenOutputFilename);
-        adapter.render.finishFile(adapter.makeFileName());
-      },
-      emitClosingCode(original) {
-        original();
-        adapter.emitTemporalNexusPayloadCodecRegistry();
-        // Emit services _after_ all types are present. We choose to be after
-        // the model types so we don't have any "ForwardRef"s to any models
-        // which is not supported by Nexus Python's handler type-checking.
+        // Emit services immediately after the model types so the public API
+        // stays contiguous. Temporal Nexus payload helpers are emitted after.
         adapter.emitServices();
+        adapter.emitTemporalNexusPayloadSupport();
+        adapter.emitTemporalNexusPayloadRegistry();
+        adapter.render.finishFile(adapter.makeFileName());
       },
       emitClass(_original, t) {
         adapter.emitClass(t);
@@ -60,7 +60,6 @@ export class PythonLanguageWithNexus extends PythonTargetLanguage {
       emitImports(original) {
         original();
         adapter.emitAdditionalImports();
-        adapter.emitTemporalNexusPayloadCodecSupport();
       },
     });
   }
@@ -83,42 +82,67 @@ type PythonRenderAccessible = PythonRenderer &
 
 const emptyNameMap: ReadonlyMap<Name, string> = new Map();
 
+type TemporalTerminalRewriteKind = "payload" | "payloads";
+
+type TemporalFieldRewrite =
+  | {
+      kind: "payload";
+      jsonName: string;
+    }
+  | {
+      kind: "payloadMap";
+      jsonName: string;
+      messageType: string;
+    }
+  | {
+      kind: "payloads";
+      jsonName: string;
+    }
+  | {
+      kind: "object";
+      jsonName: string;
+      helperName: string;
+    }
+  | {
+      kind: "array";
+      jsonName: string;
+      helperName: string;
+    }
+  | {
+      kind: "map";
+      jsonName: string;
+      helperName: string;
+    };
+
+interface TemporalClassRewritePlan {
+  typeName: string;
+  helperName: string;
+  directRewriteKind?: TemporalTerminalRewriteKind;
+  onlyWhenVisitSearchAttributes?: boolean;
+  fieldRewrites: TemporalFieldRewrite[];
+}
+
+interface TemporalOperationPayloadRewriter {
+  serviceName: string;
+  operationName: string;
+  inputTypeName: string;
+  helperName: string;
+}
+
 class PythonRenderAdapter extends RenderAdapter<PythonRenderAccessible> {
   private readonly typeNamer: Namer;
   private readonly propertyNamer: Namer;
-  private readonly nexusCodecHookInputTypeNames: Set<string>;
-  private readonly nexusCodecRewriters: {
-    serviceName: string;
-    operationName: string;
-    inputTypeName: string;
-  }[];
+  private temporalClassRewritePlans:
+    | Map<string, TemporalClassRewritePlan>
+    | undefined;
+  private nexusPayloadRewriters:
+    | readonly TemporalOperationPayloadRewriter[]
+    | undefined;
 
   constructor(render: ConvenienceRenderer, rendererOptions: RendererOptions) {
     super(render, rendererOptions);
     this.typeNamer = this.render.makeNamedTypeNamer();
     this.propertyNamer = this.render.namerForObjectProperty();
-    this.nexusCodecHookInputTypeNames = new Set(
-      Object.values(this.schema.services)
-        .flatMap((service) => Object.values(service.operations))
-        .flatMap((operation) =>
-          operation.input?.kind == "jsonSchema" ? [operation.input.name] : [],
-        ),
-    );
-    this.nexusCodecRewriters = Object.entries(this.schema.services).flatMap(
-      ([serviceName, service]) =>
-        Object.entries(service.operations).flatMap(
-          ([operationName, operation]) =>
-            operation.input?.kind == "jsonSchema"
-              ? [
-                  {
-                    serviceName,
-                    operationName,
-                    inputTypeName: operation.input.name,
-                  },
-                ]
-              : [],
-        ),
-    );
   }
 
   assertValidOptions() {
@@ -146,6 +170,9 @@ class PythonRenderAdapter extends RenderAdapter<PythonRenderAccessible> {
   }
 
   emitAdditionalImports() {
+    if (Object.keys(this.schema.services).length > 0) {
+      this.render.emitLine("from nexusrpc import Operation, service");
+    }
     // We have to emit imports for existing types with dots. Unlike the existing
     // withImport/emitImports, we do not want from X import Y, we want just
     // import and we will fully-qualify the types at the usage site.
@@ -171,160 +198,140 @@ class PythonRenderAdapter extends RenderAdapter<PythonRenderAccessible> {
     }
     if (
       this.nexusRendererOptions.temporalNexusPayloadCodecSupport &&
-      this.nexusCodecHookInputTypeNames.size > 0
+      this.getNexusPayloadRewriters().length > 0
     ) {
+      this.render.emitLine("import collections.abc");
       this.render.emitLine("import json");
       this.render.emitLine(
         "from google.protobuf.json_format import MessageToDict, ParseDict",
       );
       this.render.emitLine("import temporalio.api.common.v1");
-      this.render.emitLine("import temporalio.converter");
     }
   }
 
-  emitTemporalNexusPayloadCodecSupport() {
+  emitTemporalNexusPayloadSupport() {
     if (
       !this.nexusRendererOptions.temporalNexusPayloadCodecSupport ||
-      this.nexusCodecHookInputTypeNames.size == 0
+      this.getNexusPayloadRewriters().length == 0
     ) {
       return;
     }
 
     this.render.ensureBlankLine();
     this.render.emitBlock(
-      [
-        "async def _temporal_nexus_encode_payload_json(value: dict, payload_codec: temporalio.converter.PayloadCodec) -> dict:",
-      ],
+      "class _TemporalNexusPayloadRewriter:",
       () => {
-        this.render.emitLine(
-          "payload = ParseDict(value, ",
-          "temporalio.api.common.v1.Payload()",
-          ")",
-        );
-        this.render.emitLine(
-          "[encoded_payload] = await payload_codec.encode([payload])",
-        );
-        this.render.emitLine("return MessageToDict(encoded_payload)");
-      },
-    );
-    this.render.ensureBlankLine();
-    this.render.emitBlock(
-      [
-        "async def _temporal_nexus_encode_payloads_json(value: dict, payload_codec: temporalio.converter.PayloadCodec) -> dict:",
-      ],
-      () => {
-        this.render.emitLine(
-          "payloads = ParseDict(value, ",
-          "temporalio.api.common.v1.Payloads()",
-          ")",
-        );
-        this.render.emitLine(
-          "encoded_payloads = await payload_codec.encode(payloads.payloads)",
-        );
-        this.render.emitLine("del payloads.payloads[:]");
-        this.render.emitLine("payloads.payloads.extend(encoded_payloads)");
-        this.render.emitLine("return MessageToDict(payloads)");
-      },
-    );
-    this.render.ensureBlankLine();
-    this.render.emitBlock(
-      [
-        "async def _temporal_nexus_encode_payload_map_json(message_type: type, value: dict, payload_codec: temporalio.converter.PayloadCodec) -> dict:",
-      ],
-      () => {
-        this.render.emitLine("message = ParseDict(value, message_type())");
-        this.render.emitLine("keys = list(message.fields.keys())");
-        this.render.emitLine(
-          "encoded_payloads = await payload_codec.encode([message.fields[key] for key in keys])",
-        );
         this.render.emitBlock(
-          "for key, encoded_payload in zip(keys, encoded_payloads):",
+          [
+            "def __init__(",
+            "self, ",
+            "payload_visitor: collections.abc.Callable[[collections.abc.Sequence[temporalio.api.common.v1.Payload]], collections.abc.Awaitable[list[temporalio.api.common.v1.Payload]]], ",
+            "visit_search_attributes: bool = False",
+            "):",
+          ],
           () => {
+            this.render.emitLine("self._payload_visitor = payload_visitor");
             this.render.emitLine(
-              "message.fields[key].CopyFrom(encoded_payload)",
+              "self._visit_search_attributes = visit_search_attributes",
             );
           },
         );
-        this.render.emitLine("return MessageToDict(message)");
-      },
-    );
-    this.render.ensureBlankLine();
-    this.render.emitBlock(
-      [
-        "async def _temporal_nexus_encode_json_value(value: object, payload_codec: temporalio.converter.PayloadCodec) -> object:",
-      ],
-      () => {
-        this.render.emitLine("if isinstance(value, list):");
-        this.render.indent(() => {
-          this.render.emitLine(
-            "return [await _temporal_nexus_encode_json_value(item, payload_codec) for item in value]",
-          );
-        });
-        this.render.emitLine("if not isinstance(value, dict):");
-        this.render.indent(() => {
-          this.render.emitLine("return value");
-        });
-        this.render.emitLine('if "indexedFields" in value:');
-        this.render.indent(() => {
-          this.render.emitLine("return value");
-        });
-        this.render.emitLine(
-          'if "payloads" in value and isinstance(value["payloads"], list):',
+        this.render.ensureBlankLine();
+        this.render.emitBlock(
+          [
+            "async def _rewrite_payload_json(",
+            "self, value: dict",
+            ") -> dict:",
+          ],
+          () => {
+            this.render.emitLine(
+              "payload = ParseDict(value, ",
+              "temporalio.api.common.v1.Payload()",
+              ")",
+            );
+            this.render.emitLine(
+              "[rewritten_payload] = await self._payload_visitor([payload])",
+            );
+            this.render.emitLine("return MessageToDict(rewritten_payload)");
+          },
         );
-        this.render.indent(() => {
-          this.render.emitLine(
-            "return await _temporal_nexus_encode_payloads_json(value, payload_codec)",
-          );
-        });
-        this.render.emitLine(
-          'if "fields" in value and isinstance(value["fields"], dict):',
+        this.render.ensureBlankLine();
+        this.render.emitBlock(
+          [
+            "async def _rewrite_payloads_json(",
+            "self, value: dict",
+            ") -> dict:",
+          ],
+          () => {
+            this.render.emitLine(
+              "payloads = ParseDict(value, ",
+              "temporalio.api.common.v1.Payloads()",
+              ")",
+            );
+            this.render.emitLine(
+              "rewritten_payloads = await self._payload_visitor(payloads.payloads)",
+            );
+            this.render.emitLine("del payloads.payloads[:]");
+            this.render.emitLine("payloads.payloads.extend(rewritten_payloads)");
+            this.render.emitLine("return MessageToDict(payloads)");
+          },
         );
-        this.render.indent(() => {
-          this.render.emitLine(
-            "return await _temporal_nexus_encode_payload_map_json(temporalio.api.common.v1.Header, value, payload_codec)",
-          );
-        });
-        this.render.emitLine('if "data" in value and "metadata" in value:');
-        this.render.indent(() => {
-          this.render.emitLine(
-            "return await _temporal_nexus_encode_payload_json(value, payload_codec)",
-          );
-        });
-        this.render.emitLine("rewritten: dict[str, object] = {}");
-        this.render.emitBlock("for key, item in value.items():", () => {
-          this.render.emitLine(
-            'rewritten[key] = item if key == "indexedFields" else await _temporal_nexus_encode_json_value(item, payload_codec)',
-          );
-        });
-        this.render.emitLine("return rewritten");
+        this.render.ensureBlankLine();
+        this.render.emitBlock(
+          [
+            "async def _rewrite_payload_map_json(",
+            "self, message_type: type, value: dict",
+            ") -> dict:",
+          ],
+          () => {
+            this.render.emitLine("message = message_type()");
+            this.render.emitLine("keys = list(value.keys())");
+            this.render.emitLine(
+              "rewritten_payloads = await self._payload_visitor([ParseDict(value[key], temporalio.api.common.v1.Payload()) for key in keys])",
+            );
+            this.render.emitBlock(
+              "for key, rewritten_payload in zip(keys, rewritten_payloads):",
+              () => {
+                this.render.emitLine(
+                  "message.fields[key].CopyFrom(rewritten_payload)",
+                );
+              },
+            );
+            this.render.emitLine(
+              'return MessageToDict(message).get("fields", {})',
+            );
+          },
+        );
+        for (const plan of this.getTemporalClassRewritePlans().values()) {
+          this.render.ensureBlankLine();
+          this.emitTemporalClassRewritePlan(plan);
+        }
       },
     );
   }
 
-  emitTemporalNexusPayloadCodecRegistry() {
+  emitTemporalNexusPayloadRegistry() {
+    const payloadRewriters = this.getNexusPayloadRewriters();
     if (
       !this.nexusRendererOptions.temporalNexusPayloadCodecSupport ||
-      this.nexusCodecRewriters.length == 0
+      payloadRewriters.length == 0
     ) {
       return;
     }
 
     this.render.ensureBlankLine(2);
-    for (const rewriter of this.nexusCodecRewriters) {
-      const functionName = this.makeTemporalNexusRewriterFunctionName(
-        rewriter.inputTypeName,
-      );
+    for (const rewriter of payloadRewriters) {
       this.render.emitBlock(
         [
           "async def ",
-          functionName,
-          "(payload: temporalio.api.common.v1.Payload, payload_codec: temporalio.converter.PayloadCodec | None) -> temporalio.api.common.v1.Payload:",
+          rewriter.helperName,
+          "(",
+          "payload: temporalio.api.common.v1.Payload, ",
+          "payload_visitor: collections.abc.Callable[[collections.abc.Sequence[temporalio.api.common.v1.Payload]], collections.abc.Awaitable[list[temporalio.api.common.v1.Payload]]]",
+          ", visit_search_attributes: bool = False",
+          ") -> temporalio.api.common.v1.Payload:",
         ],
         () => {
-          this.render.emitLine("if payload_codec is None:");
-          this.render.indent(() => {
-            this.render.emitLine("return payload");
-          });
           this.render.emitLine("try:");
           this.render.indent(() => {
             this.render.emitLine("value = json.loads(payload.data)");
@@ -333,8 +340,19 @@ class PythonRenderAdapter extends RenderAdapter<PythonRenderAccessible> {
           this.render.indent(() => {
             this.render.emitLine("return payload");
           });
+          this.render.emitLine("if not isinstance(value, dict):");
+          this.render.indent(() => {
+            this.render.emitLine("return payload");
+          });
           this.render.emitLine(
-            "rewritten = await _temporal_nexus_encode_json_value(value, payload_codec)",
+            "rewriter = _TemporalNexusPayloadRewriter(",
+            "payload_visitor, visit_search_attributes)",
+          );
+          this.render.emitLine(
+            "rewritten = await ",
+            "rewriter.",
+            this.makeTemporalClassRewriteHelperName(rewriter.inputTypeName),
+            "(value)",
           );
           this.render.emitLine(
             'return temporalio.api.common.v1.Payload(metadata=dict(payload.metadata), data=json.dumps(rewritten, separators=(",", ":"), sort_keys=True).encode())',
@@ -344,22 +362,351 @@ class PythonRenderAdapter extends RenderAdapter<PythonRenderAccessible> {
       this.render.ensureBlankLine();
     }
 
-    this.render.emitLine("__temporal_nexus_payload_codec_rewriters__ = {");
+    this.render.emitLine("__temporal_nexus_payload_rewriters__ = {");
     this.render.indent(() => {
-      for (const rewriter of this.nexusCodecRewriters) {
+      for (const rewriter of payloadRewriters) {
         this.render.emitLine(
           "(",
           this.render.string(rewriter.serviceName),
           ", ",
           this.render.string(rewriter.operationName),
           "): ",
-          this.makeTemporalNexusRewriterFunctionName(rewriter.inputTypeName),
+          rewriter.helperName,
           ",",
         );
       }
     });
     this.render.emitLine("}");
     this.render.ensureBlankLine();
+  }
+
+  getNexusPayloadRewriters(): readonly TemporalOperationPayloadRewriter[] {
+    if (this.nexusPayloadRewriters) {
+      return this.nexusPayloadRewriters;
+    }
+    this.nexusPayloadRewriters = Object.entries(this.schema.services).flatMap(
+      ([serviceName, service]) =>
+        Object.entries(service.operations).flatMap(
+          ([operationName, operation]) => {
+            if (operation.input?.kind != "jsonSchema") {
+              return [];
+            }
+            const plan = this.getTemporalClassRewritePlanByName(
+              operation.input.name,
+            );
+            if (!plan) {
+              return [];
+            }
+            return [
+              {
+                serviceName,
+                operationName,
+                inputTypeName: operation.input.name,
+                helperName: this.makeTemporalNexusRewriterFunctionName(
+                  operation.input.name,
+                ),
+              },
+            ];
+          },
+        ),
+    );
+    return this.nexusPayloadRewriters;
+  }
+
+  getTemporalClassRewritePlans(): ReadonlyMap<
+    string,
+    TemporalClassRewritePlan
+  > {
+    if (!this.temporalClassRewritePlans) {
+      this.temporalClassRewritePlans = new Map();
+      for (const rewriter of this.getNexusPayloadRewriters()) {
+        this.getTemporalClassRewritePlanByName(rewriter.inputTypeName);
+      }
+    }
+    return this.temporalClassRewritePlans;
+  }
+
+  getTemporalClassRewritePlanByName(
+    typeName: string,
+  ): TemporalClassRewritePlan | undefined {
+    const topLevel = this.render.topLevels.get(typeName);
+    if (!(topLevel instanceof ClassType)) {
+      return undefined;
+    }
+    return this.getTemporalClassRewritePlan(topLevel);
+  }
+
+  getTemporalClassRewritePlan(
+    type: ClassType,
+  ): TemporalClassRewritePlan | undefined {
+    const typeName = this.getNamedTypeName(type);
+    const existingPlan = this.temporalClassRewritePlans?.get(typeName);
+    if (existingPlan) {
+      return existingPlan;
+    }
+
+    const directRewriteKind = this.getTemporalDirectRewriteKind(typeName);
+    const fieldRewrites: TemporalFieldRewrite[] = [];
+    for (const [jsonName, property] of type.getProperties()) {
+      const terminalRewrite = this.getTemporalTerminalFieldRewrite(
+        typeName,
+        jsonName,
+      );
+      if (terminalRewrite) {
+        fieldRewrites.push(terminalRewrite);
+        continue;
+      }
+      const childRewrite = this.getTemporalChildFieldRewrite(
+        property.type,
+        jsonName,
+      );
+      if (childRewrite) {
+        fieldRewrites.push(childRewrite);
+      }
+    }
+
+    if (!directRewriteKind && fieldRewrites.length == 0) {
+      return undefined;
+    }
+
+    const plan: TemporalClassRewritePlan = {
+      typeName,
+      helperName: this.makeTemporalClassRewriteHelperName(typeName),
+      directRewriteKind,
+      onlyWhenVisitSearchAttributes: typeName == "SearchAttributes",
+      fieldRewrites,
+    };
+    if (!this.temporalClassRewritePlans) {
+      this.temporalClassRewritePlans = new Map();
+    }
+    this.temporalClassRewritePlans.set(typeName, plan);
+    return plan;
+  }
+
+  getTemporalDirectRewriteKind(
+    typeName: string,
+  ): TemporalTerminalRewriteKind | undefined {
+    if (typeName == "Payload") {
+      return "payload";
+    }
+    if (typeName == "Payloads" || typeName == "Input") {
+      return "payloads";
+    }
+    return undefined;
+  }
+
+  getTemporalTerminalFieldRewrite(
+    typeName: string,
+    jsonName: string,
+  ): TemporalFieldRewrite | undefined {
+    if (typeName == "Header" && jsonName == "fields") {
+      return {
+        kind: "payloadMap",
+        jsonName,
+        messageType: "temporalio.api.common.v1.Header",
+      };
+    }
+    if (typeName == "Memo" && jsonName == "fields") {
+      return {
+        kind: "payloadMap",
+        jsonName,
+        messageType: "temporalio.api.common.v1.Memo",
+      };
+    }
+    if (typeName == "SearchAttributes" && jsonName == "indexedFields") {
+      return {
+        kind: "payloadMap",
+        jsonName,
+        messageType: "temporalio.api.common.v1.SearchAttributes",
+      };
+    }
+    if (
+      typeName == "UserMetadata" &&
+      ["summary", "details"].includes(jsonName)
+    ) {
+      return { kind: "payload", jsonName };
+    }
+    if (typeName == "Input" && jsonName == "payloads") {
+      return { kind: "payloads", jsonName };
+    }
+    return undefined;
+  }
+
+  getTemporalChildFieldRewrite(
+    type: Type,
+    jsonName: string,
+  ): TemporalFieldRewrite | undefined {
+    const normalizedType = this.unwrapNullableType(type);
+    if (!normalizedType) {
+      return undefined;
+    }
+    if (normalizedType instanceof ClassType) {
+      const plan = this.getTemporalClassRewritePlan(normalizedType);
+      return plan
+        ? { kind: "object", jsonName, helperName: plan.helperName }
+        : undefined;
+    }
+    if (normalizedType instanceof ArrayType) {
+      const itemType = this.unwrapNullableType(normalizedType.items);
+      if (itemType instanceof ClassType) {
+        const plan = this.getTemporalClassRewritePlan(itemType);
+        return plan
+          ? { kind: "array", jsonName, helperName: plan.helperName }
+          : undefined;
+      }
+      return undefined;
+    }
+    if (normalizedType instanceof MapType) {
+      const valueType = this.unwrapNullableType(normalizedType.values);
+      if (valueType instanceof ClassType) {
+        const plan = this.getTemporalClassRewritePlan(valueType);
+        return plan
+          ? { kind: "map", jsonName, helperName: plan.helperName }
+          : undefined;
+      }
+    }
+    return undefined;
+  }
+
+  unwrapNullableType(type: Type): Type | undefined {
+    if (!(type instanceof UnionType)) {
+      return type;
+    }
+    const nonNullMembers = [...type.members].filter(
+      (member) => member.kind != "null",
+    );
+    return nonNullMembers.length == 1 ? nonNullMembers[0] : undefined;
+  }
+
+  getNamedTypeName(type: Type): string {
+    return (
+      this.render.names.get(this.render.nameForNamedType(type)) ??
+      type.getCombinedName()
+    );
+  }
+
+  emitTemporalClassRewritePlan(plan: TemporalClassRewritePlan) {
+    this.render.emitBlock(
+      [
+        "async def ",
+        plan.helperName,
+        "(",
+        "self, value: dict",
+        ") -> dict:",
+      ],
+      () => {
+        if (plan.onlyWhenVisitSearchAttributes) {
+          this.render.emitLine("if not self._visit_search_attributes:");
+          this.render.indent(() => {
+            this.render.emitLine("return value");
+          });
+        }
+        if (plan.directRewriteKind == "payload") {
+          this.render.emitLine(
+            "return await self._rewrite_payload_json(value)",
+          );
+          return;
+        }
+        if (plan.directRewriteKind == "payloads") {
+          this.render.emitLine(
+            "return await self._rewrite_payloads_json(value)",
+          );
+          return;
+        }
+        this.render.emitLine("rewritten = dict(value)");
+        for (const fieldRewrite of plan.fieldRewrites) {
+          this.emitTemporalFieldRewrite(fieldRewrite);
+        }
+        this.render.emitLine("return rewritten");
+      },
+    );
+  }
+
+  emitTemporalFieldRewrite(fieldRewrite: TemporalFieldRewrite) {
+    const fieldReference = `rewritten[${JSON.stringify(fieldRewrite.jsonName)}]`;
+    const fieldLookup = `rewritten.get(${JSON.stringify(fieldRewrite.jsonName)})`;
+    if (fieldRewrite.kind == "payload") {
+      this.render.emitLine("if ", fieldLookup, " is not None:");
+      this.render.indent(() => {
+        this.render.emitLine(
+          fieldReference,
+          " = await self._rewrite_payload_json(",
+          fieldReference,
+          ")",
+        );
+      });
+      return;
+    }
+    if (fieldRewrite.kind == "payloads") {
+      this.render.emitLine("if ", fieldLookup, " is not None:");
+      this.render.indent(() => {
+        this.render.emitLine(
+          fieldReference,
+          " = await self._rewrite_payloads_json(",
+          fieldReference,
+          ")",
+        );
+      });
+      return;
+    }
+    if (fieldRewrite.kind == "payloadMap") {
+      this.render.emitLine("if ", fieldLookup, " is not None:");
+      this.render.indent(() => {
+        this.render.emitLine(
+          fieldReference,
+          " = await self._rewrite_payload_map_json(",
+          fieldRewrite.messageType,
+          ", ",
+          fieldReference,
+          ")",
+        );
+      });
+      return;
+    }
+    if (fieldRewrite.kind == "object") {
+      this.render.emitLine("if ", fieldLookup, " is not None:");
+      this.render.indent(() => {
+        this.render.emitLine(
+          fieldReference,
+          " = await ",
+          "self.",
+          fieldRewrite.helperName,
+          "(",
+          fieldReference,
+          ")",
+        );
+      });
+      return;
+    }
+    if (fieldRewrite.kind == "array") {
+      this.render.emitLine("if ", fieldLookup, " is not None:");
+      this.render.indent(() => {
+        this.render.emitLine(
+          fieldReference,
+          " = [await ",
+          "self.",
+          fieldRewrite.helperName,
+          "(item) for item in ",
+          fieldReference,
+          "]",
+        );
+      });
+      return;
+    }
+    this.render.emitLine("if ", fieldLookup, " is not None:");
+    this.render.indent(() => {
+      this.render.emitLine(fieldReference, " = {");
+      this.render.indent(() => {
+        this.render.emitLine(
+          "key: await ",
+          "self.",
+          fieldRewrite.helperName,
+          "(item)",
+        );
+        this.render.emitLine("for key, item in ", fieldReference, ".items()");
+      });
+      this.render.emitLine("}");
+    });
   }
 
   emitServices() {
@@ -465,6 +812,10 @@ class PythonRenderAdapter extends RenderAdapter<PythonRenderAccessible> {
 
   makeTemporalNexusRewriterFunctionName(inputTypeName: string): string {
     return `_temporal_nexus_rewrite_${this.propertyNamer.nameStyle(inputTypeName)}`;
+  }
+
+  makeTemporalClassRewriteHelperName(typeName: string): string {
+    return `_temporal_nexus_rewrite_${this.propertyNamer.nameStyle(typeName)}_json`;
   }
 
   getNexusType(
