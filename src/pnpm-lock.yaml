@@ -46,8 +46,8 @@ importers:
         specifier: ^8.46.0
         version: 8.53.1(eslint@9.39.2)(typescript@5.9.3)
       yaml:
-        specifier: ^2.8.1
-        version: 2.8.2
+        specifier: ^2.8.3
+        version: 2.8.3
 
   packages/nexus-rpc-gen:
     dependencies:
@@ -101,8 +101,8 @@ importers:
         specifier: ^1.0.0
         version: 1.0.0
       yaml:
-        specifier: ^2.8.1
-        version: 2.8.2
+        specifier: ^2.8.3
+        version: 2.8.3
 
   packages/nexus-rpc-gen-tests:
     dependencies:
@@ -1307,6 +1307,11 @@ packages:
     engines: {node: '>= 14.6'}
     hasBin: true
 
+  yaml@2.8.3:
+    resolution: {integrity: sha512-AvbaCLOO2Otw/lW5bmh9d/WEdcDFdQp2Z2ZUH3pX9U2ihyUY0nvLv7J6TrWowklRGPYbB/IuIMfYgxaCPg5Bpg==}
+    engines: {node: '>= 14.6'}
+    hasBin: true
+
   yargs-parser@21.1.1:
     resolution: {integrity: sha512-tVpsJW7DdjecAiFpbIB1e3qxIQsE6NoPc5/eTdrbbIC4h0LVsWhnoa3g+m2HclBIujHzsxZ4VJVA+GUuc2/LBw==}
     engines: {node: '>=12'}
@@ -2437,6 +2442,8 @@ snapshots:
   y18n@5.0.8: {}
 
   yaml@2.8.2: {}
+
+  yaml@2.8.3: {}
 
   yargs-parser@21.1.1: {}
 
