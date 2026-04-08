@@ -187,27 +187,33 @@ class PythonRenderAdapter extends RenderAdapter<PythonRenderAccessible> {
           ],
           () => {
             r.emitBlock("if isinstance(data, dict):", () => {
-              r.emitBlock("for name, field in cls.model_fields.items():", () => {
-                r.emitBlock(
-                  [
-                    "if ",
-                    r.withImport("typing", "get_origin"),
-                    "(field.annotation) is list:",
-                  ],
-                  () => {
-                    r.emitLine("key = field.alias or name");
-                    r.emitBlock("if key in data and data[key] is None:", () => {
-                      r.emitLine("data[key] = []");
-                    });
-                    r.emitBlock(
-                      "elif name in data and data[name] is None:",
-                      () => {
-                        r.emitLine("data[name] = []");
-                      },
-                    );
-                  },
-                );
-              });
+              r.emitBlock(
+                "for name, field in cls.model_fields.items():",
+                () => {
+                  r.emitBlock(
+                    [
+                      "if ",
+                      r.withImport("typing", "get_origin"),
+                      "(field.annotation) is list:",
+                    ],
+                    () => {
+                      r.emitLine("key = field.alias or name");
+                      r.emitBlock(
+                        "if key in data and data[key] is None:",
+                        () => {
+                          r.emitLine("data[key] = []");
+                        },
+                      );
+                      r.emitBlock(
+                        "elif name in data and data[name] is None:",
+                        () => {
+                          r.emitLine("data[name] = []");
+                        },
+                      );
+                    },
+                  );
+                },
+              );
             });
             r.emitLine("return data");
           },
