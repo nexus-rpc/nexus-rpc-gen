@@ -220,7 +220,7 @@ class PythonRenderAdapter extends RenderAdapter<PythonRenderAccessible> {
         this.render.emitLine(
           "model_config = ",
           this.render.withImport("pydantic", "ConfigDict"),
-          "(populate_by_name=True)",
+          "(validate_by_name=True, validate_by_alias=True)",
         );
         this.render.ensureBlankLine();
       }

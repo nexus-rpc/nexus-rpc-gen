@@ -20,46 +20,46 @@ class KitchenSinkServiceComplexArgComplexResultInlineInput(BaseModel):
 class KitchenSinkServiceComplexArgComplexResultInlineOutput(BaseModel):
     """Output type"""
 
-    model_config = ConfigDict(populate_by_name=True)
+    model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
 
     character_count: Optional[int] = Field(None, alias="characterCount")
     """Count of characters"""
 
 
 class SharedObject(BaseModel):
-    model_config = ConfigDict(populate_by_name=True)
+    model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
 
     some_field: Optional[int] = Field(None, alias="someField")
 
 
 class ComplexInput(BaseModel):
-    model_config = ConfigDict(populate_by_name=True)
+    model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
 
-    self_ref: Optional['ComplexInput'] = Field(None, alias="selfRef")
+    self_ref: Optional["ComplexInput"] = Field(None, alias="selfRef")
     some_shared_obj: Optional[SharedObject] = Field(None, alias="someSharedObj")
 
 
 class ComplexOutput(BaseModel):
-    model_config = ConfigDict(populate_by_name=True)
+    model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
 
-    self_ref: Optional['ComplexOutput'] = Field(None, alias="selfRef")
+    self_ref: Optional["ComplexOutput"] = Field(None, alias="selfRef")
     some_shared_obj: Optional[SharedObject] = Field(None, alias="someSharedObj")
 
 
 class StrangeItem(BaseModel):
-    model_config = ConfigDict(populate_by_name=True)
+    model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
 
     some_field: Optional[int] = Field(None, alias="someField")
 
 
 class PurpleStrangeItem(BaseModel):
-    model_config = ConfigDict(populate_by_name=True)
+    model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
 
     some_field: Optional[int] = Field(None, alias="someField")
 
 
 class DateInput(BaseModel):
-    model_config = ConfigDict(populate_by_name=True)
+    model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
 
     date: Optional[datetime] = None
     date_time: Optional[datetime] = Field(None, alias="dateTime")
@@ -70,20 +70,31 @@ class DateInput(BaseModel):
 class KitchenSinkService:
     """A service for all types of operations"""
 
-    scalar_arg_scalar_result: Operation[str, int] = Operation(name="scalarArgScalarResult")
+    scalar_arg_scalar_result: Operation[str, int] = Operation(
+        name="scalarArgScalarResult"
+    )
     """Counts the characters in the string"""
 
-    complex_arg_complex_result_inline: Operation[KitchenSinkServiceComplexArgComplexResultInlineInput, KitchenSinkServiceComplexArgComplexResultInlineOutput] = Operation(name="complexArgComplexResultInline")
+    complex_arg_complex_result_inline: Operation[
+        KitchenSinkServiceComplexArgComplexResultInlineInput,
+        KitchenSinkServiceComplexArgComplexResultInlineOutput,
+    ] = Operation(name="complexArgComplexResultInline")
     """Counts the characters in a string"""
 
-    scalar_arg_scalar_result_external: Operation[str, int] = Operation(name="scalarArgScalarResultExternal")
+    scalar_arg_scalar_result_external: Operation[str, int] = Operation(
+        name="scalarArgScalarResultExternal"
+    )
 
-    complex_arg_complex_result_external: Operation[ComplexInput, ComplexOutput] = Operation(name="complexArgComplexResultExternal")
+    complex_arg_complex_result_external: Operation[ComplexInput, ComplexOutput] = (
+        Operation(name="complexArgComplexResultExternal")
+    )
 
 
 @service(name="Strange{Item}")
 class StrangeItemService:
-    strange_item: Operation[StrangeItem, PurpleStrangeItem] = Operation(name="Strange{Item}")
+    strange_item: Operation[StrangeItem, PurpleStrangeItem] = Operation(
+        name="Strange{Item}"
+    )
 
     strange_item2: Operation[None, None] = Operation(name="StrangeItem")
 
@@ -100,9 +111,13 @@ class ReservedWordService:
 
 @service
 class ExistingTypesService:
-    specific_types_for_some_langs: Operation[services.types.MyExistingType, ComplexOutput] = Operation(name="specificTypesForSomeLangs")
+    specific_types_for_some_langs: Operation[
+        services.types.MyExistingType, ComplexOutput
+    ] = Operation(name="specificTypesForSomeLangs")
 
-    specific_types_for_other_langs: Operation[ComplexInput, collections.deque] = Operation(name="specificTypesForOtherLangs")
+    specific_types_for_other_langs: Operation[ComplexInput, collections.deque] = (
+        Operation(name="specificTypesForOtherLangs")
+    )
 
 
 @service

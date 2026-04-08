@@ -8,7 +8,7 @@ from nexusrpc import service, Operation
 
 
 class GetUserInput(BaseModel):
-    model_config = ConfigDict(populate_by_name=True)
+    model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
 
     user_id: str = Field(..., alias="userId")
     """User ID for the user."""
@@ -17,7 +17,7 @@ class GetUserInput(BaseModel):
 class User(BaseModel):
     """A user."""
 
-    model_config = ConfigDict(populate_by_name=True)
+    model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
 
     email: Optional[str] = None
     """Email for the user."""
@@ -39,7 +39,7 @@ class SetUserOutput(BaseModel):
 
 
 class DeleteUserInput(BaseModel):
-    model_config = ConfigDict(populate_by_name=True)
+    model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
 
     user_id: str = Field(..., alias="userId")
     """User ID for the user."""
