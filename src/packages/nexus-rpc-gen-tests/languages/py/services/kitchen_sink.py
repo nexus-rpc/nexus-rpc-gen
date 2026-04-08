@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional
 from datetime import datetime
 from nexusrpc import service, Operation
@@ -20,39 +20,49 @@ class KitchenSinkServiceComplexArgComplexResultInlineInput(BaseModel):
 class KitchenSinkServiceComplexArgComplexResultInlineOutput(BaseModel):
     """Output type"""
 
-    character_count: Optional[int] = Field(None, serialization_alias="characterCount")
+    model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
+
+    character_count: Optional[int] = Field(None, alias="characterCount")
     """Count of characters"""
 
 
 class SharedObject(BaseModel):
-    some_field: Optional[int] = Field(None, serialization_alias="someField")
+    model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
+
+    some_field: Optional[int] = Field(None, alias="someField")
 
 
 class ComplexInput(BaseModel):
-    self_ref: Optional["ComplexInput"] = Field(None, serialization_alias="selfRef")
-    some_shared_obj: Optional[SharedObject] = Field(
-        None, serialization_alias="someSharedObj"
-    )
+    model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
+
+    self_ref: Optional["ComplexInput"] = Field(None, alias="selfRef")
+    some_shared_obj: Optional[SharedObject] = Field(None, alias="someSharedObj")
 
 
 class ComplexOutput(BaseModel):
-    self_ref: Optional["ComplexOutput"] = Field(None, serialization_alias="selfRef")
-    some_shared_obj: Optional[SharedObject] = Field(
-        None, serialization_alias="someSharedObj"
-    )
+    model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
+
+    self_ref: Optional["ComplexOutput"] = Field(None, alias="selfRef")
+    some_shared_obj: Optional[SharedObject] = Field(None, alias="someSharedObj")
 
 
 class StrangeItem(BaseModel):
-    some_field: Optional[int] = Field(None, serialization_alias="someField")
+    model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
+
+    some_field: Optional[int] = Field(None, alias="someField")
 
 
 class PurpleStrangeItem(BaseModel):
-    some_field: Optional[int] = Field(None, serialization_alias="someField")
+    model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
+
+    some_field: Optional[int] = Field(None, alias="someField")
 
 
 class DateInput(BaseModel):
+    model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
+
     date: Optional[datetime] = None
-    date_time: Optional[datetime] = Field(None, serialization_alias="dateTime")
+    date_time: Optional[datetime] = Field(None, alias="dateTime")
     time: Optional[datetime] = None
 
 

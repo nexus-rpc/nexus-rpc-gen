@@ -2,23 +2,27 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional
 from nexusrpc import service, Operation
 
 
 class GetUserInput(BaseModel):
-    user_id: str = Field(..., serialization_alias="userId")
+    model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
+
+    user_id: str = Field(..., alias="userId")
     """User ID for the user."""
 
 
 class User(BaseModel):
     """A user."""
 
+    model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
+
     email: Optional[str] = None
     """Email for the user."""
 
-    user_id: Optional[str] = Field(None, serialization_alias="userId")
+    user_id: Optional[str] = Field(None, alias="userId")
     """User ID for the user."""
 
 
@@ -35,7 +39,9 @@ class SetUserOutput(BaseModel):
 
 
 class DeleteUserInput(BaseModel):
-    user_id: str = Field(..., serialization_alias="userId")
+    model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
+
+    user_id: str = Field(..., alias="userId")
     """User ID for the user."""
 
 
