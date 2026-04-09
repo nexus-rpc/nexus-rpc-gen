@@ -34,6 +34,12 @@ namespace NexusServices
 
         [NexusOperation("complexArgComplexResultExternal")]
         ComplexOutput ComplexArgComplexResultExternal(ComplexInput input);
+
+        /// <summary>
+        /// Tests required collections marshal correctly
+        /// </summary>
+        [NexusOperation("requiredCollections")]
+        RequiredCollectionsOutput RequiredCollections(RequiredCollectionsInput input);
     }
 
     [NexusService("Strange{Item}")]
@@ -128,6 +134,25 @@ namespace NexusServices
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         [JsonPropertyName("someSharedObj")]
         public SharedObject SomeSharedObj { get; set; }
+    }
+
+    public partial class RequiredCollectionsInput
+    {
+        [JsonPropertyName("metadata")]
+        public Dictionary<string, string> Metadata { get; set; }
+
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        [JsonPropertyName("optionalList")]
+        public long[] OptionalList { get; set; }
+
+        [JsonPropertyName("tags")]
+        public string[] Tags { get; set; }
+    }
+
+    public partial class RequiredCollectionsOutput
+    {
+        [JsonPropertyName("items")]
+        public string[] Items { get; set; }
     }
 
     public partial class StrangeItem

@@ -14,6 +14,9 @@ const kitchenSinkHandler = nexus.serviceHandler(kitchenSinkService, {
   complexArgComplexResultExternal: async (_context, _input) => {
     throw new Error("Not implemented");
   },
+  requiredCollections: async (_context, _input) => {
+    throw new Error("Not implemented");
+  },
 });
 
 const jsonSerializer = {

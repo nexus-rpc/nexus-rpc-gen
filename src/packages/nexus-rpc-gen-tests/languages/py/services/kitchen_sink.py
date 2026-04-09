@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pydantic import BaseModel, ConfigDict, Field
-from typing import Optional
+from typing import Optional, Dict, List
 from datetime import datetime
 from nexusrpc import service, Operation
 import collections
@@ -44,6 +44,18 @@ class ComplexOutput(BaseModel):
 
     self_ref: Optional["ComplexOutput"] = Field(None, alias="selfRef")
     some_shared_obj: Optional[SharedObject] = Field(None, alias="someSharedObj")
+
+
+class RequiredCollectionsInput(BaseModel):
+    model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
+
+    metadata: Dict[str, str]
+    tags: List[str]
+    optional_list: Optional[List[int]] = Field(None, alias="optionalList")
+
+
+class RequiredCollectionsOutput(BaseModel):
+    items: List[str]
 
 
 class StrangeItem(BaseModel):
@@ -88,6 +100,11 @@ class KitchenSinkService:
     complex_arg_complex_result_external: Operation[ComplexInput, ComplexOutput] = (
         Operation(name="complexArgComplexResultExternal")
     )
+
+    required_collections: Operation[
+        RequiredCollectionsInput, RequiredCollectionsOutput
+    ] = Operation(name="requiredCollections")
+    """Tests required collections marshal correctly"""
 
 
 @service(name="Strange{Item}")

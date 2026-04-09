@@ -1,4 +1,5 @@
 import {
+  ClassType,
   ConvenienceRenderer,
   goOptions,
   GoRenderer,
@@ -68,6 +69,10 @@ export class GoLanguageWithNexus extends GoTargetLanguage {
         }
         original(t, name);
       },
+      emitClass(original, c, className) {
+        original(c, className);
+        adapter.emitMarshalJSON(c, className);
+      },
       nullableGoType(original, t, withIssues) {
         // If the kind is a primitive and primitive pointers disabled, just return goType
         if (
@@ -106,6 +111,7 @@ type GoRenderAccessible = Omit<GoRenderer, "emitTypesAndSupport"> &
     readonly _options: OptionValues<typeof goOptions>;
     get haveNamedUnions(): boolean;
     collectAllImports(): Set<string>;
+    emitClass(c: ClassType, className: Name): void;
     emitSourceStructure(): void;
     emitTopLevel(t: Type, name: Name): void;
     goType(t: Type, withIssues?: boolean): Sourcelike;
@@ -115,6 +121,7 @@ type GoRenderAccessible = Omit<GoRenderer, "emitTypesAndSupport"> &
 
 class GoRenderAdapter extends RenderAdapter<GoRenderAccessible> {
   private _imports?: Record<string, string>;
+  private _needsMarshalJSON?: boolean;
 
   assertValidOptions() {
     // Currently, we only support single-file in Go
@@ -132,6 +139,32 @@ class GoRenderAdapter extends RenderAdapter<GoRenderAccessible> {
         ? `${services[0][0]}.go`
         : `${this.nexusRendererOptions.firstFilenameSansExtensions}.go`;
     return name.toLowerCase();
+  }
+
+  get needsMarshalJSON(): boolean {
+    if (this._needsMarshalJSON === undefined) {
+      this._needsMarshalJSON = false;
+      this.render.forEachNamedType(
+        "none",
+        (c) => {
+          this.render.forEachClassProperty(
+            c,
+            "none",
+            (_name, _jsonName, cp) => {
+              if (
+                !cp.isOptional &&
+                (cp.type.kind === "array" || cp.type.kind === "map")
+              ) {
+                this._needsMarshalJSON = true;
+              }
+            },
+          );
+        },
+        () => {},
+        () => {},
+      );
+    }
+    return this._needsMarshalJSON;
   }
 
   // Key is qualified import, value is alias
@@ -157,6 +190,9 @@ class GoRenderAdapter extends RenderAdapter<GoRenderAccessible> {
         origImports.add("encoding/json");
       }
       origImports.add("github.com/nexus-rpc/sdk-go/nexus");
+      if (this.needsMarshalJSON) {
+        origImports.add("encoding/json");
+      }
       for (const mport of origImports) {
         this._imports[mport] = aliasForImport(mport);
       }
@@ -231,6 +267,45 @@ class GoRenderAdapter extends RenderAdapter<GoRenderAccessible> {
     )) {
       this.emitService(serviceName, serviceSchema);
     }
+  }
+
+  emitMarshalJSON(c: ClassType, className: Name) {
+    const nilCheckFields: { name: Name; goType: Sourcelike }[] = [];
+    this.render.forEachClassProperty(c, "none", (name, _jsonName, cp) => {
+      if (
+        !cp.isOptional &&
+        (cp.type.kind === "array" || cp.type.kind === "map")
+      ) {
+        nilCheckFields.push({
+          name,
+          goType: this.render.goType(cp.type, false),
+        });
+      }
+    });
+
+    if (nilCheckFields.length === 0) {
+      return;
+    }
+
+    this.render.ensureBlankLine();
+    this.render.emitLine(
+      "func (o ",
+      className,
+      ") MarshalJSON() ([]byte, error) {",
+    );
+    this.render.indent(() => {
+      this.render.emitLine("type Alias ", className);
+      this.render.emitLine("a := Alias(o)");
+      for (const field of nilCheckFields) {
+        this.render.emitLine("if a.", field.name, " == nil {");
+        this.render.indent(() => {
+          this.render.emitLine("a.", field.name, " = ", field.goType, "{}");
+        });
+        this.render.emitLine("}");
+      }
+      this.render.emitLine("return json.Marshal(a)");
+    });
+    this.render.emitLine("}");
   }
 
   emitService(serviceName: string, serviceSchema: PreparedService) {
