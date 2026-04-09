@@ -11,36 +11,26 @@ export const kitchenSinkService = nexus.service("KitchenSinkService", {
   /**
    * Counts the characters in the string
    */
-  scalarArgScalarResult: nexus.operation<
-    KitchenSinkServiceScalarArgScalarResultInput,
-    KitchenSinkServiceScalarArgScalarResultOutput
-  >(),
+  scalarArgScalarResult: nexus.operation<KitchenSinkServiceScalarArgScalarResultInput, KitchenSinkServiceScalarArgScalarResultOutput>(),
 
   /**
    * Counts the characters in a string
    */
-  complexArgComplexResultInline: nexus.operation<
-    KitchenSinkServiceComplexArgumentComplexResultInlineInput,
-    KitchenSinkServiceComplexArgumentComplexResultInlineOutput
-  >(),
+  complexArgComplexResultInline: nexus.operation<KitchenSinkServiceComplexArgComplexResultInlineInput, KitchenSinkServiceComplexArgComplexResultInlineOutput>(),
 
   scalarArgScalarResultExternal: nexus.operation<ScalarInput, ScalarOutput>(),
 
-  complexArgComplexResultExternal: nexus.operation<
-    ComplexInput,
-    ComplexOutput
-  >(),
+  complexArgComplexResultExternal: nexus.operation<ComplexInput, ComplexOutput>(),
 });
 
 export const strangeItem = nexus.service("Strange{Item}", {
-  strangeItem: nexus.operation<StrangeItem, PurpleStrangeItem>({
-    name: "Strange{Item}",
-  }),
+  strangeItem: nexus.operation<StrangeItem, PurpleStrangeItem>({ name: "Strange{Item}" }),
 
   strangeItem2: nexus.operation<void, void>({ name: "StrangeItem" }),
 });
 
-export const strangeItem2 = nexus.service("StrangeItem", {});
+export const strangeItem2 = nexus.service("StrangeItem", {
+});
 
 export const reservedWordService = nexus.service("ReservedWordService", {
   toStringOperation: nexus.operation<void, void>({ name: "ToString" }),
@@ -79,7 +69,7 @@ export type ScalarOutput = number;
 /**
  * Input type
  */
-export interface KitchenSinkServiceComplexArgumentComplexResultInlineInput {
+export interface KitchenSinkServiceComplexArgComplexResultInlineInput {
   /**
    * String to count
    */
@@ -89,7 +79,7 @@ export interface KitchenSinkServiceComplexArgumentComplexResultInlineInput {
 /**
  * Output type
  */
-export interface KitchenSinkServiceComplexArgumentComplexResultInlineOutput {
+export interface KitchenSinkServiceComplexArgComplexResultInlineOutput {
   /**
    * Count of characters
    */
@@ -97,7 +87,7 @@ export interface KitchenSinkServiceComplexArgumentComplexResultInlineOutput {
 }
 
 export interface ComplexInput {
-  selfRef?: ComplexInput;
+  selfRef?:       ComplexInput;
   someSharedObj?: SharedObject;
 }
 
@@ -106,7 +96,7 @@ export interface SharedObject {
 }
 
 export interface ComplexOutput {
-  selfRef?: ComplexOutput;
+  selfRef?:       ComplexOutput;
   someSharedObj?: SharedObject;
 }
 
@@ -119,8 +109,8 @@ export interface PurpleStrangeItem {
 }
 
 export interface DateInput {
-  date?: Date;
+  date?:     Date;
   dateTime?: Date;
-  time?: string;
+  time?:     string;
   [property: string]: any;
 }
