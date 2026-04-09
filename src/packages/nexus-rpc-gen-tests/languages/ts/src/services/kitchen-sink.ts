@@ -11,31 +11,44 @@ export const kitchenSinkService = nexus.service("KitchenSinkService", {
   /**
    * Counts the characters in the string
    */
-  scalarArgScalarResult: nexus.operation<KitchenSinkServiceScalarArgScalarResultInput, KitchenSinkServiceScalarArgScalarResultOutput>(),
+  scalarArgScalarResult: nexus.operation<
+    KitchenSinkServiceScalarArgScalarResultInput,
+    KitchenSinkServiceScalarArgScalarResultOutput
+  >(),
 
   /**
    * Counts the characters in a string
    */
-  complexArgComplexResultInline: nexus.operation<KitchenSinkServiceComplexArgComplexResultInlineInput, KitchenSinkServiceComplexArgComplexResultInlineOutput>(),
+  complexArgComplexResultInline: nexus.operation<
+    KitchenSinkServiceComplexArgComplexResultInlineInput,
+    KitchenSinkServiceComplexArgComplexResultInlineOutput
+  >(),
 
   scalarArgScalarResultExternal: nexus.operation<ScalarInput, ScalarOutput>(),
 
-  complexArgComplexResultExternal: nexus.operation<ComplexInput, ComplexOutput>(),
+  complexArgComplexResultExternal: nexus.operation<
+    ComplexInput,
+    ComplexOutput
+  >(),
 
   /**
    * Tests required collections marshal correctly
    */
-  requiredCollections: nexus.operation<RequiredCollectionsInput, RequiredCollectionsOutput>(),
+  requiredCollections: nexus.operation<
+    RequiredCollectionsInput,
+    RequiredCollectionsOutput
+  >(),
 });
 
 export const strangeItem = nexus.service("Strange{Item}", {
-  strangeItem: nexus.operation<StrangeItem, PurpleStrangeItem>({ name: "Strange{Item}" }),
+  strangeItem: nexus.operation<StrangeItem, PurpleStrangeItem>({
+    name: "Strange{Item}",
+  }),
 
   strangeItem2: nexus.operation<void, void>({ name: "StrangeItem" }),
 });
 
-export const strangeItem2 = nexus.service("StrangeItem", {
-});
+export const strangeItem2 = nexus.service("StrangeItem", {});
 
 export const reservedWordService = nexus.service("ReservedWordService", {
   toStringOperation: nexus.operation<void, void>({ name: "ToString" }),
@@ -92,7 +105,7 @@ export interface KitchenSinkServiceComplexArgComplexResultInlineOutput {
 }
 
 export interface ComplexInput {
-  selfRef?:       ComplexInput;
+  selfRef?: ComplexInput;
   someSharedObj?: SharedObject;
 }
 
@@ -101,14 +114,14 @@ export interface SharedObject {
 }
 
 export interface ComplexOutput {
-  selfRef?:       ComplexOutput;
+  selfRef?: ComplexOutput;
   someSharedObj?: SharedObject;
 }
 
 export interface RequiredCollectionsInput {
-  metadata:      { [key: string]: string };
+  metadata: { [key: string]: string };
   optionalList?: number[];
-  tags:          string[];
+  tags: string[];
 }
 
 export interface RequiredCollectionsOutput {
@@ -124,8 +137,8 @@ export interface PurpleStrangeItem {
 }
 
 export interface DateInput {
-  date?:     Date;
+  date?: Date;
   dateTime?: Date;
-  time?:     string;
+  time?: string;
   [property: string]: any;
 }
