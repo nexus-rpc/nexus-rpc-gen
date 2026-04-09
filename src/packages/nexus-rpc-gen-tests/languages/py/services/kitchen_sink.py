@@ -2,53 +2,62 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, Field
+from dataclasses import dataclass
 from typing import Optional
 from datetime import datetime
-from nexusrpc import service, Operation
+from dataclasses import dataclass
+from nexusrpc import Operation, service
 import collections
 import services.types
 
 
-class KitchenSinkServiceComplexArgComplexResultInlineInput(BaseModel):
+@dataclass
+class KitchenSinkServiceComplexArgComplexResultInlineInput:
     """Input type"""
 
     string: Optional[str] = None
     """String to count"""
 
 
-class KitchenSinkServiceComplexArgComplexResultInlineOutput(BaseModel):
+@dataclass
+class KitchenSinkServiceComplexArgComplexResultInlineOutput:
     """Output type"""
 
-    character_count: Optional[int] = Field(None, alias="characterCount")
+    characterCount: Optional[int] = None
     """Count of characters"""
 
 
-class SharedObject(BaseModel):
-    some_field: Optional[int] = Field(None, alias="someField")
+@dataclass
+class SharedObject:
+    someField: Optional[int] = None
 
 
-class ComplexInput(BaseModel):
-    self_ref: Optional["ComplexInput"] = Field(None, alias="selfRef")
-    some_shared_obj: Optional[SharedObject] = Field(None, alias="someSharedObj")
+@dataclass
+class ComplexInput:
+    selfRef: Optional["ComplexInput"] = None
+    someSharedObj: Optional[SharedObject] = None
 
 
-class ComplexOutput(BaseModel):
-    self_ref: Optional["ComplexOutput"] = Field(None, alias="selfRef")
-    some_shared_obj: Optional[SharedObject] = Field(None, alias="someSharedObj")
+@dataclass
+class ComplexOutput:
+    selfRef: Optional["ComplexOutput"] = None
+    someSharedObj: Optional[SharedObject] = None
 
 
-class StrangeItem(BaseModel):
-    some_field: Optional[int] = Field(None, alias="someField")
+@dataclass
+class StrangeItem:
+    someField: Optional[int] = None
 
 
-class PurpleStrangeItem(BaseModel):
-    some_field: Optional[int] = Field(None, alias="someField")
+@dataclass
+class PurpleStrangeItem:
+    someField: Optional[int] = None
 
 
-class DateInput(BaseModel):
+@dataclass
+class DateInput:
     date: Optional[datetime] = None
-    date_time: Optional[datetime] = Field(None, alias="dateTime")
+    dateTime: Optional[datetime] = None
     time: Optional[datetime] = None
 
 

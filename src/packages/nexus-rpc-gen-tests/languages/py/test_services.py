@@ -36,7 +36,7 @@ class KitchenSinkServiceHandler:
     ) -> KitchenSinkServiceComplexArgComplexResultInlineOutput:
         assert input.string
         return KitchenSinkServiceComplexArgComplexResultInlineOutput(
-            character_count=len(input.string)
+            characterCount=len(input.string)
         )
 
     @sync_operation
@@ -82,7 +82,7 @@ async def test_temp():
     assert (
         complex_result.value
         == KitchenSinkServiceComplexArgComplexResultInlineOutput(
-            character_count=len("some other string")
+            characterCount=len("some other string")
         )
     )
 

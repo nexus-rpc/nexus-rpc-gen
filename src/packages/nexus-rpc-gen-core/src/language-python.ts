@@ -134,6 +134,9 @@ class PythonRenderAdapter extends RenderAdapter<PythonRenderAccessible> {
   private temporalClassRewritePlans:
     | Map<string, TemporalClassRewritePlan>
     | undefined;
+  private temporalClassRewritePlanInProgress:
+    | Set<string>
+    | undefined;
   private nexusPayloadRewriters:
     | readonly TemporalOperationPayloadRewriter[]
     | undefined;
@@ -440,43 +443,54 @@ class PythonRenderAdapter extends RenderAdapter<PythonRenderAccessible> {
     if (existingPlan) {
       return existingPlan;
     }
-
-    const directRewriteKind = this.getTemporalDirectRewriteKind(typeName);
-    const fieldRewrites: TemporalFieldRewrite[] = [];
-    for (const [jsonName, property] of type.getProperties()) {
-      const terminalRewrite = this.getTemporalTerminalFieldRewrite(
-        typeName,
-        jsonName,
-      );
-      if (terminalRewrite) {
-        fieldRewrites.push(terminalRewrite);
-        continue;
-      }
-      const childRewrite = this.getTemporalChildFieldRewrite(
-        property.type,
-        jsonName,
-      );
-      if (childRewrite) {
-        fieldRewrites.push(childRewrite);
-      }
-    }
-
-    if (!directRewriteKind && fieldRewrites.length == 0) {
+    if (this.temporalClassRewritePlanInProgress?.has(typeName)) {
       return undefined;
     }
-
-    const plan: TemporalClassRewritePlan = {
-      typeName,
-      helperName: this.makeTemporalClassRewriteHelperName(typeName),
-      directRewriteKind,
-      onlyWhenVisitSearchAttributes: typeName == "SearchAttributes",
-      fieldRewrites,
-    };
-    if (!this.temporalClassRewritePlans) {
-      this.temporalClassRewritePlans = new Map();
+    if (!this.temporalClassRewritePlanInProgress) {
+      this.temporalClassRewritePlanInProgress = new Set();
     }
-    this.temporalClassRewritePlans.set(typeName, plan);
-    return plan;
+    this.temporalClassRewritePlanInProgress.add(typeName);
+
+    try {
+      const directRewriteKind = this.getTemporalDirectRewriteKind(typeName);
+      const fieldRewrites: TemporalFieldRewrite[] = [];
+      for (const [jsonName, property] of type.getProperties()) {
+        const terminalRewrite = this.getTemporalTerminalFieldRewrite(
+          typeName,
+          jsonName,
+        );
+        if (terminalRewrite) {
+          fieldRewrites.push(terminalRewrite);
+          continue;
+        }
+        const childRewrite = this.getTemporalChildFieldRewrite(
+          property.type,
+          jsonName,
+        );
+        if (childRewrite) {
+          fieldRewrites.push(childRewrite);
+        }
+      }
+
+      if (!directRewriteKind && fieldRewrites.length == 0) {
+        return undefined;
+      }
+
+      const plan: TemporalClassRewritePlan = {
+        typeName,
+        helperName: this.makeTemporalClassRewriteHelperName(typeName),
+        directRewriteKind,
+        onlyWhenVisitSearchAttributes: typeName == "SearchAttributes",
+        fieldRewrites,
+      };
+      if (!this.temporalClassRewritePlans) {
+        this.temporalClassRewritePlans = new Map();
+      }
+      this.temporalClassRewritePlans.set(typeName, plan);
+      return plan;
+    } finally {
+      this.temporalClassRewritePlanInProgress.delete(typeName);
+    }
   }
 
   getTemporalDirectRewriteKind(

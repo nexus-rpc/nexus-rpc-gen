@@ -2,40 +2,47 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, Field
+from dataclasses import dataclass
 from typing import Optional
-from nexusrpc import service, Operation
+from dataclasses import dataclass
+from nexusrpc import Operation, service
 
 
-class GetUserInput(BaseModel):
-    user_id: str = Field(..., serialization_alias="userId")
+@dataclass
+class GetUserInput:
+    userId: str
     """User ID for the user."""
 
 
-class User(BaseModel):
+@dataclass
+class User:
     """A user."""
 
     email: Optional[str] = None
     """Email for the user."""
 
-    user_id: Optional[str] = Field(None, serialization_alias="userId")
+    userId: Optional[str] = None
     """User ID for the user."""
 
 
-class GetUserOutput(BaseModel):
+@dataclass
+class GetUserOutput:
     user: User
 
 
-class SetUserInput(BaseModel):
+@dataclass
+class SetUserInput:
     user: User
 
 
-class SetUserOutput(BaseModel):
+@dataclass
+class SetUserOutput:
     user: User
 
 
-class DeleteUserInput(BaseModel):
-    user_id: str = Field(..., serialization_alias="userId")
+@dataclass
+class DeleteUserInput:
+    userId: str
     """User ID for the user."""
 
 
