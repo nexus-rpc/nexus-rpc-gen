@@ -4,6 +4,8 @@ import { runRpcGen } from "./spawn.js";
 
 const temporalSchema =
   "../../temporal-api/nexus/temporal-json-schema-models-nexusrpc.yaml";
+const temporalMultiServiceSchema =
+  "packages/nexus-rpc-gen-tests/definitions/temporal-multi-service.nexusrpc.yaml";
 
 test("Python temporal nexus payload codec support is optional", async () => {
   const withoutFlag = await runRpcGen(
@@ -42,8 +44,16 @@ test("Python temporal nexus payload codec support is optional", async () => {
     "registry should be keyed by service and operation",
   );
   assert.ok(
-    withFlag.stdout.includes('alias="workflowId"'),
-    "generated Python models should validate aliased JSON fields",
+    withFlag.stdout.includes("@dataclass"),
+    "generated Python models should use dataclasses",
+  );
+  assert.ok(
+    withFlag.stdout.includes("workflowId: Optional[str] = None"),
+    "generated Python models should use JSON field names directly",
+  );
+  assert.ok(
+    !withFlag.stdout.includes("Field("),
+    "generated Python models should not rely on pydantic Field metadata",
   );
   assert.ok(
     withFlag.stdout.includes(
@@ -76,5 +86,34 @@ test("Python temporal nexus payload codec support is optional", async () => {
   assert.ok(
     withFlag.stdout.includes("class _TemporalNexusPayloadRewriter:"),
     "generated helpers should be grouped in an object",
+  );
+});
+
+test("Python temporal nexus payload rewriter registry supports multiple services and operations", async () => {
+  const result = await runRpcGen(
+    [
+      "--lang",
+      "py",
+      "--dry-run",
+      "--temporal-nexus-payload-codec-support",
+      temporalMultiServiceSchema,
+    ],
+    { stdio: "pipe" },
+  );
+  result.assertSuccess();
+  for (const key of [
+    '("FirstService", "OpOne")',
+    '("FirstService", "OpTwo")',
+    '("SecondService", "OpThree")',
+  ]) {
+    assert.ok(
+      result.stdout.includes(key),
+      `registry should include ${key}`,
+    );
+  }
+  assert.equal(
+    result.stdout.match(/\(".*?", ".*?"\): _temporal_nexus_rewrite_/g)?.length,
+    3,
+    "registry should contain exactly one entry per service/operation pair",
   );
 });

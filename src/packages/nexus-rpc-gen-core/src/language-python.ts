@@ -24,7 +24,6 @@ import { splitDescription } from "./utility.js";
 pythonOptions.justTypes.definition.defaultValue = true;
 pythonOptions.features.definition.defaultValue = "3.7";
 pythonOptions.nicePropertyNames.definition.defaultValue = true;
-pythonOptions.pydanticBaseModel.definition.defaultValue = true;
 
 export class PythonLanguageWithNexus extends PythonTargetLanguage {
   protected override makeRenderer<Lang extends LanguageName = "python">(
@@ -150,9 +149,6 @@ class PythonRenderAdapter extends RenderAdapter<PythonRenderAccessible> {
     if (!this.render.pyOptions.justTypes) {
       throw new Error("Python option for just-types must be set");
     }
-    if (!this.render.pyOptions.pydanticBaseModel) {
-      throw new Error("Python option for pydantic-model must be set");
-    }
     if (!this.render.pyOptions.features.typeHints) {
       throw new Error("Python option to include type hints must be set");
     }
@@ -170,6 +166,13 @@ class PythonRenderAdapter extends RenderAdapter<PythonRenderAccessible> {
   }
 
   emitAdditionalImports() {
+    if (
+      [...this.render.topLevels.values()].some(
+        (type) => type instanceof ClassType,
+      )
+    ) {
+      this.render.emitLine("from dataclasses import dataclass");
+    }
     if (Object.keys(this.schema.services).length > 0) {
       this.render.emitLine("from nexusrpc import Operation, service");
     }
@@ -218,96 +221,89 @@ class PythonRenderAdapter extends RenderAdapter<PythonRenderAccessible> {
     }
 
     this.render.ensureBlankLine();
-    this.render.emitBlock(
-      "class _TemporalNexusPayloadRewriter:",
-      () => {
-        this.render.emitBlock(
-          [
-            "def __init__(",
-            "self, ",
-            "payload_visitor: collections.abc.Callable[[collections.abc.Sequence[temporalio.api.common.v1.Payload]], collections.abc.Awaitable[list[temporalio.api.common.v1.Payload]]], ",
-            "visit_search_attributes: bool = False",
-            "):",
-          ],
-          () => {
-            this.render.emitLine("self._payload_visitor = payload_visitor");
-            this.render.emitLine(
-              "self._visit_search_attributes = visit_search_attributes",
-            );
-          },
-        );
+    this.render.emitBlock("class _TemporalNexusPayloadRewriter:", () => {
+      this.render.emitBlock(
+        [
+          "def __init__(",
+          "self, ",
+          "payload_visitor: collections.abc.Callable[[collections.abc.Sequence[temporalio.api.common.v1.Payload]], collections.abc.Awaitable[list[temporalio.api.common.v1.Payload]]], ",
+          "visit_search_attributes: bool = False",
+          "):",
+        ],
+        () => {
+          this.render.emitLine("self._payload_visitor = payload_visitor");
+          this.render.emitLine(
+            "self._visit_search_attributes = visit_search_attributes",
+          );
+        },
+      );
+      this.render.ensureBlankLine();
+      this.render.emitBlock(
+        ["async def _rewrite_payload_json(", "self, value: dict", ") -> dict:"],
+        () => {
+          this.render.emitLine(
+            "payload = ParseDict(value, ",
+            "temporalio.api.common.v1.Payload()",
+            ")",
+          );
+          this.render.emitLine(
+            "[rewritten_payload] = await self._payload_visitor([payload])",
+          );
+          this.render.emitLine("return MessageToDict(rewritten_payload)");
+        },
+      );
+      this.render.ensureBlankLine();
+      this.render.emitBlock(
+        [
+          "async def _rewrite_payloads_json(",
+          "self, value: dict",
+          ") -> dict:",
+        ],
+        () => {
+          this.render.emitLine(
+            "payloads = ParseDict(value, ",
+            "temporalio.api.common.v1.Payloads()",
+            ")",
+          );
+          this.render.emitLine(
+            "rewritten_payloads = await self._payload_visitor(payloads.payloads)",
+          );
+          this.render.emitLine("del payloads.payloads[:]");
+          this.render.emitLine("payloads.payloads.extend(rewritten_payloads)");
+          this.render.emitLine("return MessageToDict(payloads)");
+        },
+      );
+      this.render.ensureBlankLine();
+      this.render.emitBlock(
+        [
+          "async def _rewrite_payload_map_json(",
+          "self, message_type: type, value: dict",
+          ") -> dict:",
+        ],
+        () => {
+          this.render.emitLine("message = message_type()");
+          this.render.emitLine("keys = list(value.keys())");
+          this.render.emitLine(
+            "rewritten_payloads = await self._payload_visitor([ParseDict(value[key], temporalio.api.common.v1.Payload()) for key in keys])",
+          );
+          this.render.emitBlock(
+            "for key, rewritten_payload in zip(keys, rewritten_payloads):",
+            () => {
+              this.render.emitLine(
+                "message.fields[key].CopyFrom(rewritten_payload)",
+              );
+            },
+          );
+          this.render.emitLine(
+            'return MessageToDict(message).get("fields", {})',
+          );
+        },
+      );
+      for (const plan of this.getTemporalClassRewritePlans().values()) {
         this.render.ensureBlankLine();
-        this.render.emitBlock(
-          [
-            "async def _rewrite_payload_json(",
-            "self, value: dict",
-            ") -> dict:",
-          ],
-          () => {
-            this.render.emitLine(
-              "payload = ParseDict(value, ",
-              "temporalio.api.common.v1.Payload()",
-              ")",
-            );
-            this.render.emitLine(
-              "[rewritten_payload] = await self._payload_visitor([payload])",
-            );
-            this.render.emitLine("return MessageToDict(rewritten_payload)");
-          },
-        );
-        this.render.ensureBlankLine();
-        this.render.emitBlock(
-          [
-            "async def _rewrite_payloads_json(",
-            "self, value: dict",
-            ") -> dict:",
-          ],
-          () => {
-            this.render.emitLine(
-              "payloads = ParseDict(value, ",
-              "temporalio.api.common.v1.Payloads()",
-              ")",
-            );
-            this.render.emitLine(
-              "rewritten_payloads = await self._payload_visitor(payloads.payloads)",
-            );
-            this.render.emitLine("del payloads.payloads[:]");
-            this.render.emitLine("payloads.payloads.extend(rewritten_payloads)");
-            this.render.emitLine("return MessageToDict(payloads)");
-          },
-        );
-        this.render.ensureBlankLine();
-        this.render.emitBlock(
-          [
-            "async def _rewrite_payload_map_json(",
-            "self, message_type: type, value: dict",
-            ") -> dict:",
-          ],
-          () => {
-            this.render.emitLine("message = message_type()");
-            this.render.emitLine("keys = list(value.keys())");
-            this.render.emitLine(
-              "rewritten_payloads = await self._payload_visitor([ParseDict(value[key], temporalio.api.common.v1.Payload()) for key in keys])",
-            );
-            this.render.emitBlock(
-              "for key, rewritten_payload in zip(keys, rewritten_payloads):",
-              () => {
-                this.render.emitLine(
-                  "message.fields[key].CopyFrom(rewritten_payload)",
-                );
-              },
-            );
-            this.render.emitLine(
-              'return MessageToDict(message).get("fields", {})',
-            );
-          },
-        );
-        for (const plan of this.getTemporalClassRewritePlans().values()) {
-          this.render.ensureBlankLine();
-          this.emitTemporalClassRewritePlan(plan);
-        }
-      },
-    );
+        this.emitTemporalClassRewritePlan(plan);
+      }
+    });
   }
 
   emitTemporalNexusPayloadRegistry() {
@@ -587,13 +583,7 @@ class PythonRenderAdapter extends RenderAdapter<PythonRenderAccessible> {
 
   emitTemporalClassRewritePlan(plan: TemporalClassRewritePlan) {
     this.render.emitBlock(
-      [
-        "async def ",
-        plan.helperName,
-        "(",
-        "self, value: dict",
-        ") -> dict:",
-      ],
+      ["async def ", plan.helperName, "(", "self, value: dict", ") -> dict:"],
       () => {
         if (plan.onlyWhenVisitSearchAttributes) {
           this.render.emitLine("if not self._visit_search_attributes:");
@@ -771,43 +761,43 @@ class PythonRenderAdapter extends RenderAdapter<PythonRenderAccessible> {
   }
 
   emitClass(t: ClassType) {
+    const properties: {
+      jsonName: string;
+      type: Type;
+    }[] = [];
+    this.render.forEachClassProperty(t, "none", (_name, jsonName, cp) => {
+      properties.push({ jsonName, type: cp.type });
+    });
+    properties.sort((a, b) => {
+      const aOptional = this.isOptionalType(a.type);
+      const bOptional = this.isOptionalType(b.type);
+      return Number(aOptional) - Number(bOptional);
+    });
+    this.render.emitLine(
+      "@",
+      this.render.withImport("dataclasses", "dataclass"),
+    );
     this.render.declareType(t, () => {
       if (t.getProperties().size === 0) {
         this.render.emitLine("pass");
         return;
       }
-      this.render.forEachClassProperty(t, "none", (name, jsonName, cp) => {
-        // Get the type string and append a pydantic Field to it if the name
-        // doesn't match the JSON name.
-        let typeSource = this.render.pythonType(cp.type, true);
-        // const fieldName = name.namingFunction.nameStyle(name.firstProposedName(emptyNameMap));
-        const fieldName = this.render.sourcelikeToString(name);
-        if (fieldName != jsonName) {
-          // Ellipsis means no default. In optional situations, typeSource has a
-          // trailing " = None" which we need to remove and set as default
-          let fieldDefault = "...";
-          if (Array.isArray(typeSource) && typeSource.at(-1) == " = None") {
-            typeSource = typeSource.slice(0, -1);
-            fieldDefault = "None";
-          }
-          typeSource = [
-            typeSource,
-            " = ",
-            this.render.withImport("pydantic", "Field"),
-            "(",
-            fieldDefault,
-            ", alias=",
-            this.render.string(jsonName),
-            ")",
-          ];
-        }
-        this.render.emitLine(name, ": ", typeSource);
+      for (const { jsonName, type } of properties) {
+        const typeSource = this.render.pythonType(type, true);
+        this.render.emitLine(jsonName, ": ", typeSource);
         this.render.emitDescription(
           this.render.descriptionForClassProperty(t, jsonName),
         );
-      });
+      }
       this.render.ensureBlankLine();
     });
+  }
+
+  isOptionalType(type: Type): boolean {
+    return (
+      type instanceof UnionType &&
+      [...type.members].some((member) => member.kind == "null")
+    );
   }
 
   makeTemporalNexusRewriterFunctionName(inputTypeName: string): string {
