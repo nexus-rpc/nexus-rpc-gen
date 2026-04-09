@@ -85,6 +85,10 @@ export class Generator {
     const schemaInput = new JSONSchemaInput(new LocalFetchingSchemaStore());
     for (const schema of sources.sources) {
       const jsonSchema = {
+        // Set title to end with __ALL_TYPES__ so quicktype uses this name for the
+        // top-level entry even with multiple sources (otherwise it falls back
+        // to the filename, creating spurious types like "example.nexusrpc.yaml")
+        title: schema.sourceURI.toString() + "/__ALL_TYPES__",
         ...schema.sharedJsonSchema,
         ...schema.topLevelJsonSchemaTypes,
       };
