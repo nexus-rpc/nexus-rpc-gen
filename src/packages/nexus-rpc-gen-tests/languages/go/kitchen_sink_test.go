@@ -2,6 +2,7 @@ package main_test
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 	"strings"
 	"testing"
@@ -39,6 +40,24 @@ func (k KitchenSinkService) BuildNexusService() *nexus.Service {
 		services.KitchenSinkService.ComplexArgComplexResultInline.Name(),
 		k.ComplexArgComplexResultInline))
 	return ret
+}
+
+func TestRequiredCollectionsMarshal(t *testing.T) {
+	// Zero value should marshal with empty arrays and maps, not null
+	input := services.RequiredCollectionsInput{}
+	data, err := json.Marshal(input)
+	require.NoError(t, err)
+
+	var raw map[string]interface{}
+	require.NoError(t, json.Unmarshal(data, &raw))
+
+	// Required fields should be non-null empty collections
+	require.Equal(t, []interface{}{}, raw["tags"])
+	require.Equal(t, map[string]interface{}{}, raw["metadata"])
+
+	// Optional field should be absent (omitempty)
+	_, hasOptionalList := raw["optionalList"]
+	require.False(t, hasOptionalList, "optional nil slice should be omitted")
 }
 
 func TestKitchenSink(t *testing.T) {

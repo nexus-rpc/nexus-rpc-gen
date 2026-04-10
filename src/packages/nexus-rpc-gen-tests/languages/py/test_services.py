@@ -17,6 +17,8 @@ from services.kitchen_sink import (
     ComplexOutput,
     KitchenSinkServiceComplexArgComplexResultInlineInput,
     KitchenSinkServiceComplexArgComplexResultInlineOutput,
+    RequiredCollectionsInput,
+    RequiredCollectionsOutput,
 )
 
 
@@ -49,6 +51,12 @@ class KitchenSinkServiceHandler:
     async def complex_arg_complex_result_external(
         self, ctx: StartOperationContext, input: ComplexInput
     ) -> ComplexOutput:
+        raise NotImplementedError
+
+    @sync_operation
+    async def required_collections(
+        self, ctx: StartOperationContext, input: RequiredCollectionsInput
+    ) -> RequiredCollectionsOutput:
         raise NotImplementedError
 
 
@@ -85,6 +93,16 @@ async def test_temp():
             character_count=len("some other string")
         )
     )
+
+
+def test_required_collections_from_go_json():
+    """Verify Python can deserialize JSON as produced by Go's MarshalJSON (empty collections, not null)."""
+    # This is the JSON that Go produces when marshaling a zero-value RequiredCollectionsInput
+    go_json = '{"metadata":{},"tags":[]}'
+    model = RequiredCollectionsInput.model_validate_json(go_json)
+    assert model.tags == []
+    assert model.metadata == {}
+    assert model.optional_list is None
 
 
 class PydanticSerializer:

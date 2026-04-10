@@ -34,6 +34,10 @@ public class NexusServicesTests
         [NexusOperationHandler]
         public IOperationHandler<ComplexInput, ComplexOutput> ComplexArgComplexResultExternal() =>
             NotImplemented<ComplexInput, ComplexOutput>();
+
+        [NexusOperationHandler]
+        public IOperationHandler<RequiredCollectionsInput, RequiredCollectionsOutput> RequiredCollections() =>
+            NotImplemented<RequiredCollectionsInput, RequiredCollectionsOutput>();
     }
 
     [Fact]

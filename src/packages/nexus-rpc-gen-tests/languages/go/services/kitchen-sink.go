@@ -2,6 +2,7 @@
 
 package services
 
+import "encoding/json"
 import "net/http"
 import "time"
 
@@ -10,19 +11,22 @@ import "github.com/nexus-rpc/sdk-go/nexus"
 
 // A service for all types of operations
 var KitchenSinkService = struct {
-	ServiceName                           string
-	// Counts the characters in the string
-	ScalarArgScalarResult                 nexus.OperationReference[KitchenSinkServiceScalarArgScalarResultInput, KitchenSinkServiceScalarArgScalarResultOutput]
-	// Counts the characters in a string  
-	ComplexArgComplexResultInline         nexus.OperationReference[KitchenSinkServiceComplexArgComplexResultInlineInput, KitchenSinkServiceComplexArgComplexResultInlineOutput]
-	ScalarArgScalarResultExternal         nexus.OperationReference[ScalarInput, ScalarOutput]
-	ComplexArgComplexResultExternal       nexus.OperationReference[ComplexInput, ComplexOutput]
+	ServiceName                                    string
+	// Counts the characters in the string         
+	ScalarArgScalarResult                          nexus.OperationReference[KitchenSinkServiceScalarArgScalarResultInput, KitchenSinkServiceScalarArgScalarResultOutput]
+	// Counts the characters in a string           
+	ComplexArgComplexResultInline                  nexus.OperationReference[KitchenSinkServiceComplexArgComplexResultInlineInput, KitchenSinkServiceComplexArgComplexResultInlineOutput]
+	ScalarArgScalarResultExternal                  nexus.OperationReference[ScalarInput, ScalarOutput]
+	ComplexArgComplexResultExternal                nexus.OperationReference[ComplexInput, ComplexOutput]
+	// Tests required collections marshal correctly
+	RequiredCollections                            nexus.OperationReference[RequiredCollectionsInput, RequiredCollectionsOutput]
 }{
 	ServiceName:                     "KitchenSinkService",
 	ScalarArgScalarResult:           nexus.NewOperationReference[KitchenSinkServiceScalarArgScalarResultInput, KitchenSinkServiceScalarArgScalarResultOutput]("scalarArgScalarResult"),
 	ComplexArgComplexResultInline:   nexus.NewOperationReference[KitchenSinkServiceComplexArgComplexResultInlineInput, KitchenSinkServiceComplexArgComplexResultInlineOutput]("complexArgComplexResultInline"),
 	ScalarArgScalarResultExternal:   nexus.NewOperationReference[ScalarInput, ScalarOutput]("scalarArgScalarResultExternal"),
 	ComplexArgComplexResultExternal: nexus.NewOperationReference[ComplexInput, ComplexOutput]("complexArgComplexResultExternal"),
+	RequiredCollections:             nexus.NewOperationReference[RequiredCollectionsInput, RequiredCollectionsOutput]("requiredCollections"),
 }
 
 var StrangeItemService = struct {
@@ -99,6 +103,37 @@ type SharedObject struct {
 type ComplexOutput struct {
 	SelfRef       *ComplexOutput `json:"selfRef,omitempty"`
 	SomeSharedObj *SharedObject  `json:"someSharedObj,omitempty"`
+}
+
+type RequiredCollectionsInput struct {
+	Metadata     map[string]string `json:"metadata"`
+	OptionalList []int64           `json:"optionalList,omitempty"`
+	Tags         []string          `json:"tags"`
+}
+
+func (o RequiredCollectionsInput) MarshalJSON() ([]byte, error) {
+	type Alias RequiredCollectionsInput
+	a := Alias(o)
+	if a.Metadata == nil {
+		a.Metadata = map[string]string{}
+	}
+	if a.Tags == nil {
+		a.Tags = []string{}
+	}
+	return json.Marshal(a)
+}
+
+type RequiredCollectionsOutput struct {
+	Items []string `json:"items"`
+}
+
+func (o RequiredCollectionsOutput) MarshalJSON() ([]byte, error) {
+	type Alias RequiredCollectionsOutput
+	a := Alias(o)
+	if a.Items == nil {
+		a.Items = []string{}
+	}
+	return json.Marshal(a)
 }
 
 type StrangeItem struct {

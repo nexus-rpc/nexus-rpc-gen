@@ -22,4 +22,8 @@ public interface KitchenSinkService {
 
   @Operation
   ComplexOutput complexArgComplexResultExternal(ComplexInput input);
+
+  /** Tests required collections marshal correctly */
+  @Operation
+  RequiredCollectionsOutput requiredCollections(RequiredCollectionsInput input);
 }

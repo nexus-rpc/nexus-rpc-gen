@@ -49,6 +49,15 @@ public class KitchenSinkServiceTest {
             throw new UnsupportedOperationException();
           });
     }
+
+    @OperationImpl
+    public OperationHandler<RequiredCollectionsInput, RequiredCollectionsOutput>
+        requiredCollections() {
+      return OperationHandler.sync(
+          (ctx, details, input) -> {
+            throw new UnsupportedOperationException();
+          });
+    }
   }
 
   @Test
