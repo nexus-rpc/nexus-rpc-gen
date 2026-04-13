@@ -1,0 +1,72 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { runRpcGen } from "./spawn.js";
+
+const temporalSchema =
+  "../../temporal-api/nexus/temporal-json-schema-models-nexusrpc.yaml";
+
+test("Go temporal nexus payload codec support is optional", async () => {
+  const withoutFlag = await runRpcGen(
+    ["--lang", "go", "--dry-run", "--package", "json", temporalSchema],
+    { stdio: "pipe" },
+  );
+  withoutFlag.assertSuccess();
+  assert.ok(
+    !withoutFlag.stdout.includes("TemporalNexusPayloadRewriters"),
+    "registry should not be emitted without the generic flag",
+  );
+
+  const withFlag = await runRpcGen(
+    [
+      "--lang",
+      "go",
+      "--dry-run",
+      "--package",
+      "json",
+      "--temporal-nexus-payload-codec-support",
+      temporalSchema,
+    ],
+    { stdio: "pipe" },
+  );
+  withFlag.assertSuccess();
+  assert.ok(
+    withFlag.stdout.includes("var TemporalNexusPayloadRewriters ="),
+    "registry should be emitted when the generic flag is enabled",
+  );
+  assert.ok(
+    withFlag.stdout.includes("func GetTemporalNexusPayloadRewriter("),
+    "getter should be emitted when payload codec support is enabled",
+  );
+  assert.ok(
+    withFlag.stdout.includes(
+      '{ServiceName: "WorkflowService", OperationName: "SignalWithStartWorkflowExecution"}',
+    ),
+    "registry should be keyed by service and operation",
+  );
+  assert.ok(
+    withFlag.stdout.includes(
+      "func (r *temporalNexusPayloadRewriter) rewriteUserMetadataJSON(",
+    ),
+    "user metadata should have a structural rewriter helper",
+  );
+  assert.ok(
+    withFlag.stdout.includes(
+      'rewrittenValue, err := r.rewritePayloadJSON(fieldValue)',
+    ),
+    "payload fields should be rewritten structurally",
+  );
+  assert.ok(
+    withFlag.stdout.includes(
+      "func (r *temporalNexusPayloadRewriter) rewriteSearchAttributesJSON(",
+    ),
+    "search attributes should have a structural rewriter helper",
+  );
+  assert.ok(
+    withFlag.stdout.includes("if !r.visitSearchAttributes {"),
+    "search attribute rewriting should be opt-in",
+  );
+  assert.ok(
+    withFlag.stdout.includes("type temporalNexusPayloadRewriter struct {"),
+    "generated helpers should be grouped in an object",
+  );
+});

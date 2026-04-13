@@ -1,11 +1,15 @@
 import {
+  ArrayType,
+  ClassType,
   ConvenienceRenderer,
   goOptions,
   GoRenderer,
   GoTargetLanguage,
+  MapType,
   Name,
   Namer,
   Type,
+  UnionType,
   type LanguageName,
   type OptionValues,
   type RenderContext,
@@ -59,6 +63,8 @@ export class GoLanguageWithNexus extends GoTargetLanguage {
       emitSourceStructure(original) {
         adapter.emitServices();
         original();
+        adapter.emitTemporalNexusPayloadSupport();
+        adapter.emitTemporalNexusPayloadRegistry();
         adapter.render.finishFile(adapter.makeFileName());
       },
       emitTopLevel(original, t, name) {
@@ -104,6 +110,7 @@ function needsExplicitAlias(mport: string, alias: string): boolean {
 type GoRenderAccessible = Omit<GoRenderer, "emitTypesAndSupport"> &
   RenderAccessible & {
     readonly _options: OptionValues<typeof goOptions>;
+    emitBlock(line: Sourcelike, f: () => void): void;
     get haveNamedUnions(): boolean;
     collectAllImports(): Set<string>;
     emitSourceStructure(): void;
@@ -113,8 +120,66 @@ type GoRenderAccessible = Omit<GoRenderer, "emitTypesAndSupport"> &
     nullableGoType(t: Type, withIssues: boolean): Sourcelike;
   };
 
+type TemporalTerminalRewriteKind = "payload" | "payloads";
+
+type TemporalPayloadMapRewriteKind = "headerFields" | "memoFields" | "searchAttributes";
+
+type TemporalFieldRewrite =
+  | {
+      kind: "payload";
+      jsonName: string;
+    }
+  | {
+      kind: "payloadMap";
+      jsonName: string;
+      mapKind: TemporalPayloadMapRewriteKind;
+    }
+  | {
+      kind: "payloads";
+      jsonName: string;
+    }
+  | {
+      kind: "object";
+      jsonName: string;
+      helperName: string;
+    }
+  | {
+      kind: "array";
+      jsonName: string;
+      helperName: string;
+    }
+  | {
+      kind: "map";
+      jsonName: string;
+      helperName: string;
+    };
+
+interface TemporalClassRewritePlan {
+  typeName: string;
+  helperName: string;
+  directRewriteKind?: TemporalTerminalRewriteKind;
+  onlyWhenVisitSearchAttributes?: boolean;
+  fieldRewrites: TemporalFieldRewrite[];
+}
+
+interface TemporalOperationPayloadRewriter {
+  serviceName: string;
+  operationName: string;
+  inputTypeName: string;
+  helperName: string;
+}
+
 class GoRenderAdapter extends RenderAdapter<GoRenderAccessible> {
   private _imports?: Record<string, string>;
+  private temporalClassRewritePlans:
+    | Map<string, TemporalClassRewritePlan>
+    | undefined;
+  private temporalClassRewritePlanInProgress:
+    | Set<string>
+    | undefined;
+  private nexusPayloadRewriters:
+    | readonly TemporalOperationPayloadRewriter[]
+    | undefined;
 
   assertValidOptions() {
     // Currently, we only support single-file in Go
@@ -132,6 +197,18 @@ class GoRenderAdapter extends RenderAdapter<GoRenderAccessible> {
         ? `${services[0][0]}.go`
         : `${this.nexusRendererOptions.firstFilenameSansExtensions}.go`;
     return name.toLowerCase();
+  }
+
+  makeTemporalClassRewriteHelperName(typeName: string) {
+    return `rewrite${typeName}JSON`;
+  }
+
+  makeTemporalNexusRewriterFunctionName(typeName: string) {
+    return `rewrite${typeName}Payload`;
+  }
+
+  renderStringLiteral(value: string): Sourcelike {
+    return [`"${stringEscape(value)}"`];
   }
 
   // Key is qualified import, value is alias
@@ -157,6 +234,16 @@ class GoRenderAdapter extends RenderAdapter<GoRenderAccessible> {
         origImports.add("encoding/json");
       }
       origImports.add("github.com/nexus-rpc/sdk-go/nexus");
+      if (
+        this.nexusRendererOptions.temporalNexusPayloadCodecSupport &&
+        this.getNexusPayloadRewriters().length > 0
+      ) {
+        origImports.add("encoding/json");
+        origImports.add("errors");
+        origImports.add("go.temporal.io/api/common/v1");
+        origImports.add("go.temporal.io/api/temporalproto");
+        origImports.add("google.golang.org/protobuf/proto");
+      }
       for (const mport of origImports) {
         this._imports[mport] = aliasForImport(mport);
       }
@@ -231,6 +318,738 @@ class GoRenderAdapter extends RenderAdapter<GoRenderAccessible> {
     )) {
       this.emitService(serviceName, serviceSchema);
     }
+  }
+
+  emitTemporalNexusPayloadSupport() {
+    if (
+      !this.nexusRendererOptions.temporalNexusPayloadCodecSupport ||
+      this.getNexusPayloadRewriters().length == 0
+    ) {
+      return;
+    }
+
+    const commonv1 = this.imports["go.temporal.io/api/common/v1"];
+    const temporalproto = this.imports["go.temporal.io/api/temporalproto"];
+    const proto = this.imports["google.golang.org/protobuf/proto"];
+
+    this.render.ensureBlankLine(2);
+    this.render.emitLine(
+      "type TemporalNexusPayloadVisitor func([]*",
+      commonv1,
+      ".Payload) ([]*",
+      commonv1,
+      ".Payload, error)",
+    );
+    this.render.ensureBlankLine();
+    this.render.emitLine(
+      "type TemporalNexusPayloadRewriter func(*",
+      commonv1,
+      ".Payload, TemporalNexusPayloadVisitor, bool) (*",
+      commonv1,
+      ".Payload, error)",
+    );
+    this.render.ensureBlankLine();
+    this.render.emitBlock("type TemporalNexusPayloadRewriterKey struct", () => {
+      this.render.emitLine("ServiceName string");
+      this.render.emitLine("OperationName string");
+    });
+    this.render.ensureBlankLine();
+    this.render.emitBlock("type temporalNexusPayloadRewriter struct", () => {
+      this.render.emitLine("payloadVisitor TemporalNexusPayloadVisitor");
+      this.render.emitLine("visitSearchAttributes bool");
+    });
+    this.render.ensureBlankLine();
+    this.render.emitLine(
+      "var temporalNexusPayloadShorthandMetadata = map[string]interface{}{",
+    );
+    this.render.indent(() => {
+      this.render.emitLine(commonv1, ".EnablePayloadShorthandMetadataKey: true,");
+    });
+    this.render.emitLine("}");
+    this.render.ensureBlankLine();
+    this.render.emitBlock(
+      [
+        "func temporalNexusDecodeJSONValue(",
+        "value any, message ",
+        proto,
+        ".Message",
+        ") error",
+      ],
+      () => {
+        this.render.emitLine("data, err := json.Marshal(value)");
+        this.render.emitLine("if err != nil {");
+        this.render.indent(() => this.render.emitLine("return err"));
+        this.render.emitLine("}");
+        this.render.emitLine(
+          "return ",
+          temporalproto,
+          ".CustomJSONUnmarshalOptions{Metadata: temporalNexusPayloadShorthandMetadata}.Unmarshal(data, message)",
+        );
+      },
+    );
+    this.render.ensureBlankLine();
+    this.render.emitBlock(
+      [
+        "func temporalNexusEncodeJSONValue(",
+        "message ",
+        proto,
+        ".Message",
+        ") (any, error)",
+      ],
+      () => {
+        this.render.emitLine(
+          "data, err := ",
+          temporalproto,
+          ".CustomJSONMarshalOptions{Metadata: temporalNexusPayloadShorthandMetadata}.Marshal(message)",
+        );
+        this.render.emitLine("if err != nil {");
+        this.render.indent(() => this.render.emitLine("return nil, err"));
+        this.render.emitLine("}");
+        this.render.emitLine("var value any");
+        this.render.emitLine("if err := json.Unmarshal(data, &value); err != nil {");
+        this.render.indent(() => this.render.emitLine("return nil, err"));
+        this.render.emitLine("}");
+        this.render.emitLine("return value, nil");
+      },
+    );
+    this.render.ensureBlankLine();
+    this.render.emitBlock(
+      [
+        "func (r *temporalNexusPayloadRewriter) rewritePayloadJSON(",
+        "value any",
+        ") (any, error)",
+      ],
+      () => {
+        this.render.emitLine("payload := &", commonv1, ".Payload{}");
+        this.render.emitLine(
+          "if err := temporalNexusDecodeJSONValue(value, payload); err != nil {",
+        );
+        this.render.indent(() => this.render.emitLine("return nil, err"));
+        this.render.emitLine("}");
+        this.render.emitLine(
+          "rewrittenPayloads, err := r.payloadVisitor([]*",
+          commonv1,
+          ".Payload{payload})",
+        );
+        this.render.emitLine("if err != nil {");
+        this.render.indent(() => this.render.emitLine("return nil, err"));
+        this.render.emitLine("}");
+        this.render.emitLine("if len(rewrittenPayloads) != 1 {");
+        this.render.indent(() =>
+          this.render.emitLine(
+            'return nil, errors.New("temporal nexus payload visitor returned unexpected payload count")',
+          ),
+        );
+        this.render.emitLine("}");
+        this.render.emitLine(
+          "return temporalNexusEncodeJSONValue(rewrittenPayloads[0])",
+        );
+      },
+    );
+    this.render.ensureBlankLine();
+    this.render.emitBlock(
+      [
+        "func (r *temporalNexusPayloadRewriter) rewritePayloadsJSON(",
+        "value any",
+        ") (any, error)",
+      ],
+      () => {
+        this.render.emitLine("payloads := &", commonv1, ".Payloads{}");
+        this.render.emitLine(
+          "if err := temporalNexusDecodeJSONValue(value, payloads); err != nil {",
+        );
+        this.render.indent(() => this.render.emitLine("return nil, err"));
+        this.render.emitLine("}");
+        this.render.emitLine(
+          "rewrittenPayloads, err := r.payloadVisitor(payloads.Payloads)",
+        );
+        this.render.emitLine("if err != nil {");
+        this.render.indent(() => this.render.emitLine("return nil, err"));
+        this.render.emitLine("}");
+        this.render.emitLine("payloads.Payloads = rewrittenPayloads");
+        this.render.emitLine("return temporalNexusEncodeJSONValue(payloads)");
+      },
+    );
+    this.render.ensureBlankLine();
+    for (const [helperName, messageType, fieldName, needsFlag] of [
+      ["rewriteHeaderFieldsJSON", `${commonv1}.Header`, "fields", false],
+      ["rewriteMemoFieldsJSON", `${commonv1}.Memo`, "fields", false],
+      [
+        "rewriteSearchAttributesFieldsJSON",
+        `${commonv1}.SearchAttributes`,
+        "indexedFields",
+        true,
+      ],
+    ] as const) {
+      this.render.emitBlock(
+        [
+          "func (r *temporalNexusPayloadRewriter) ",
+          helperName,
+          "(value any) (any, error)",
+        ],
+        () => {
+          if (needsFlag) {
+            this.render.emitLine("if !r.visitSearchAttributes {");
+            this.render.indent(() => this.render.emitLine("return value, nil"));
+            this.render.emitLine("}");
+          }
+          this.render.emitLine(
+            "messageValue := map[string]any{",
+            this.renderStringLiteral(fieldName),
+            ": value}",
+          );
+          this.render.emitLine("message := &", messageType, "{}");
+          this.render.emitLine(
+            "if err := temporalNexusDecodeJSONValue(messageValue, message); err != nil {",
+          );
+          this.render.indent(() => this.render.emitLine("return nil, err"));
+          this.render.emitLine("}");
+          this.render.emitLine(
+            "keys := make([]string, 0, len(message.",
+            fieldName == "indexedFields" ? "IndexedFields" : "Fields",
+            "))",
+          );
+          this.render.emitLine(
+            "payloads := make([]*",
+            commonv1,
+            ".Payload, 0, len(message.",
+            fieldName == "indexedFields" ? "IndexedFields" : "Fields",
+            "))",
+          );
+          this.render.emitBlock(
+            [
+              "for key, payload := range message.",
+            fieldName == "indexedFields" ? "IndexedFields" : "Fields",
+          ],
+            () => {
+              this.render.emitLine("keys = append(keys, key)");
+              this.render.emitLine("payloads = append(payloads, payload)");
+            },
+          );
+          this.render.emitLine(
+            "rewrittenPayloads, err := r.payloadVisitor(payloads)",
+          );
+          this.render.emitLine("if err != nil {");
+          this.render.indent(() => this.render.emitLine("return nil, err"));
+          this.render.emitLine("}");
+          this.render.emitLine("if len(rewrittenPayloads) != len(keys) {");
+          this.render.indent(() =>
+            this.render.emitLine(
+              'return nil, errors.New("temporal nexus payload visitor returned unexpected payload count")',
+            ),
+          );
+          this.render.emitLine("}");
+          this.render.emitLine(
+            "message.",
+            fieldName == "indexedFields" ? "IndexedFields" : "Fields",
+            " = make(map[string]*",
+            commonv1,
+            ".Payload, len(keys))",
+          );
+          this.render.emitBlock("for i, key := range keys", () => {
+            this.render.emitLine(
+              "message.",
+              fieldName == "indexedFields" ? "IndexedFields" : "Fields",
+              "[key] = rewrittenPayloads[i]",
+            );
+          });
+          this.render.emitLine("encoded, err := temporalNexusEncodeJSONValue(message)");
+          this.render.emitLine("if err != nil {");
+          this.render.indent(() => this.render.emitLine("return nil, err"));
+          this.render.emitLine("}");
+          this.render.emitLine("encodedMap, ok := encoded.(map[string]any)");
+          this.render.emitLine("if !ok {");
+          this.render.indent(() =>
+            this.render.emitLine(
+              'return nil, errors.New("temporal nexus payload rewriter expected object JSON")',
+            ),
+          );
+          this.render.emitLine("}");
+          this.render.emitLine(
+            "return encodedMap[",
+            this.renderStringLiteral(fieldName),
+            "], nil",
+          );
+        },
+      );
+      this.render.ensureBlankLine();
+    }
+    for (const plan of this.getTemporalClassRewritePlans().values()) {
+      this.emitTemporalClassRewritePlan(plan);
+      this.render.ensureBlankLine();
+    }
+  }
+
+  emitTemporalClassRewritePlan(plan: TemporalClassRewritePlan) {
+    this.render.emitBlock(
+      [
+        "func (r *temporalNexusPayloadRewriter) ",
+        plan.helperName,
+        "(value map[string]any) (map[string]any, error)",
+      ],
+      () => {
+        if (plan.onlyWhenVisitSearchAttributes) {
+          this.render.emitLine("if !r.visitSearchAttributes {");
+          this.render.indent(() => this.render.emitLine("return value, nil"));
+          this.render.emitLine("}");
+        }
+        if (plan.directRewriteKind == "payload") {
+          this.render.emitLine("rewritten, err := r.rewritePayloadJSON(value)");
+          this.render.emitLine("if err != nil {");
+          this.render.indent(() => this.render.emitLine("return nil, err"));
+          this.render.emitLine("}");
+          this.render.emitLine("rewrittenMap, ok := rewritten.(map[string]any)");
+          this.render.emitLine("if !ok {");
+          this.render.indent(() =>
+            this.render.emitLine(
+              'return nil, errors.New("temporal nexus payload rewriter expected object JSON")',
+            ),
+          );
+          this.render.emitLine("}");
+          this.render.emitLine("return rewrittenMap, nil");
+          return;
+        }
+        if (plan.directRewriteKind == "payloads") {
+          this.render.emitLine("rewritten, err := r.rewritePayloadsJSON(value)");
+          this.render.emitLine("if err != nil {");
+          this.render.indent(() => this.render.emitLine("return nil, err"));
+          this.render.emitLine("}");
+          this.render.emitLine("rewrittenMap, ok := rewritten.(map[string]any)");
+          this.render.emitLine("if !ok {");
+          this.render.indent(() =>
+            this.render.emitLine(
+              'return nil, errors.New("temporal nexus payload rewriter expected object JSON")',
+            ),
+          );
+          this.render.emitLine("}");
+          this.render.emitLine("return rewrittenMap, nil");
+          return;
+        }
+        this.render.emitLine("rewritten := make(map[string]any, len(value))");
+        this.render.emitBlock("for key, item := range value", () => {
+          this.render.emitLine("rewritten[key] = item");
+        });
+        for (const fieldRewrite of plan.fieldRewrites) {
+          this.emitTemporalFieldRewrite(fieldRewrite);
+        }
+        this.render.emitLine("return rewritten, nil");
+      },
+    );
+  }
+
+  emitTemporalFieldRewrite(fieldRewrite: TemporalFieldRewrite) {
+    const fieldName = this.renderStringLiteral(fieldRewrite.jsonName);
+    this.render.emitLine("if fieldValue, ok := rewritten[", fieldName, "]; ok && fieldValue != nil {");
+    this.render.indent(() => {
+      if (fieldRewrite.kind == "payload") {
+        this.render.emitLine("rewrittenValue, err := r.rewritePayloadJSON(fieldValue)");
+        this.render.emitLine("if err != nil {");
+        this.render.indent(() => this.render.emitLine("return nil, err"));
+        this.render.emitLine("}");
+        this.render.emitLine("rewritten[", fieldName, "] = rewrittenValue");
+        return;
+      }
+      if (fieldRewrite.kind == "payloads") {
+        this.render.emitLine("rewrittenValue, err := r.rewritePayloadsJSON(fieldValue)");
+        this.render.emitLine("if err != nil {");
+        this.render.indent(() => this.render.emitLine("return nil, err"));
+        this.render.emitLine("}");
+        this.render.emitLine("rewritten[", fieldName, "] = rewrittenValue");
+        return;
+      }
+      if (fieldRewrite.kind == "payloadMap") {
+        const helperName =
+          fieldRewrite.mapKind == "headerFields"
+            ? "rewriteHeaderFieldsJSON"
+            : fieldRewrite.mapKind == "memoFields"
+              ? "rewriteMemoFieldsJSON"
+              : "rewriteSearchAttributesFieldsJSON";
+        this.render.emitLine(
+          "rewrittenValue, err := r.",
+          helperName,
+          "(fieldValue)",
+        );
+        this.render.emitLine("if err != nil {");
+        this.render.indent(() => this.render.emitLine("return nil, err"));
+        this.render.emitLine("}");
+        this.render.emitLine("rewritten[", fieldName, "] = rewrittenValue");
+        return;
+      }
+      if (fieldRewrite.kind == "object") {
+        this.render.emitLine("fieldMap, ok := fieldValue.(map[string]any)");
+        this.render.emitLine("if !ok {");
+        this.render.indent(() =>
+          this.render.emitLine(
+            'return nil, errors.New("temporal nexus payload rewriter expected object field")',
+          ),
+        );
+        this.render.emitLine("}");
+        this.render.emitLine(
+          "rewrittenValue, err := r.",
+          fieldRewrite.helperName,
+          "(fieldMap)",
+        );
+        this.render.emitLine("if err != nil {");
+        this.render.indent(() => this.render.emitLine("return nil, err"));
+        this.render.emitLine("}");
+        this.render.emitLine("rewritten[", fieldName, "] = rewrittenValue");
+        return;
+      }
+      if (fieldRewrite.kind == "array") {
+        this.render.emitLine("fieldArray, ok := fieldValue.([]any)");
+        this.render.emitLine("if !ok {");
+        this.render.indent(() =>
+          this.render.emitLine(
+            'return nil, errors.New("temporal nexus payload rewriter expected array field")',
+          ),
+        );
+        this.render.emitLine("}");
+        this.render.emitLine("rewrittenItems := make([]any, 0, len(fieldArray))");
+        this.render.emitBlock("for _, item := range fieldArray", () => {
+          this.render.emitLine("itemMap, ok := item.(map[string]any)");
+          this.render.emitLine("if !ok {");
+          this.render.indent(() =>
+            this.render.emitLine(
+              'return nil, errors.New("temporal nexus payload rewriter expected object array item")',
+            ),
+          );
+          this.render.emitLine("}");
+          this.render.emitLine(
+            "rewrittenItem, err := r.",
+            fieldRewrite.helperName,
+            "(itemMap)",
+          );
+          this.render.emitLine("if err != nil {");
+          this.render.indent(() => this.render.emitLine("return nil, err"));
+          this.render.emitLine("}");
+          this.render.emitLine("rewrittenItems = append(rewrittenItems, rewrittenItem)");
+        });
+        this.render.emitLine("rewritten[", fieldName, "] = rewrittenItems");
+        return;
+      }
+      this.render.emitLine("fieldMap, ok := fieldValue.(map[string]any)");
+      this.render.emitLine("if !ok {");
+      this.render.indent(() =>
+        this.render.emitLine(
+          'return nil, errors.New("temporal nexus payload rewriter expected map field")',
+        ),
+      );
+      this.render.emitLine("}");
+      this.render.emitLine("rewrittenItems := make(map[string]any, len(fieldMap))");
+      this.render.emitBlock("for key, item := range fieldMap", () => {
+        this.render.emitLine("itemMap, ok := item.(map[string]any)");
+        this.render.emitLine("if !ok {");
+        this.render.indent(() =>
+          this.render.emitLine(
+            'return nil, errors.New("temporal nexus payload rewriter expected object map item")',
+          ),
+        );
+        this.render.emitLine("}");
+        this.render.emitLine(
+          "rewrittenItem, err := r.",
+          fieldRewrite.helperName,
+          "(itemMap)",
+        );
+        this.render.emitLine("if err != nil {");
+        this.render.indent(() => this.render.emitLine("return nil, err"));
+        this.render.emitLine("}");
+        this.render.emitLine("rewrittenItems[key] = rewrittenItem");
+      });
+      this.render.emitLine("rewritten[", fieldName, "] = rewrittenItems");
+    });
+    this.render.emitLine("}");
+  }
+
+  emitTemporalNexusPayloadRegistry() {
+    const payloadRewriters = this.getNexusPayloadRewriters();
+    if (
+      !this.nexusRendererOptions.temporalNexusPayloadCodecSupport ||
+      payloadRewriters.length == 0
+    ) {
+      return;
+    }
+
+    const commonv1 = this.imports["go.temporal.io/api/common/v1"];
+    const proto = this.imports["google.golang.org/protobuf/proto"];
+
+    for (const rewriter of payloadRewriters) {
+      this.render.emitBlock(
+        [
+          "func ",
+          rewriter.helperName,
+          "(",
+          "payload *",
+          commonv1,
+          ".Payload, payloadVisitor TemporalNexusPayloadVisitor, visitSearchAttributes bool",
+          ") (*",
+          commonv1,
+          ".Payload, error)",
+        ],
+        () => {
+          this.render.emitLine("var value any");
+          this.render.emitLine("if err := json.Unmarshal(payload.GetData(), &value); err != nil {");
+          this.render.indent(() => this.render.emitLine("return payload, nil"));
+          this.render.emitLine("}");
+          this.render.emitLine("valueMap, ok := value.(map[string]any)");
+          this.render.emitLine("if !ok {");
+          this.render.indent(() => this.render.emitLine("return payload, nil"));
+          this.render.emitLine("}");
+          this.render.emitLine(
+            "rewriter := &temporalNexusPayloadRewriter{payloadVisitor: payloadVisitor, visitSearchAttributes: visitSearchAttributes}",
+          );
+          this.render.emitLine(
+            "rewrittenValue, err := rewriter.",
+            this.makeTemporalClassRewriteHelperName(rewriter.inputTypeName),
+            "(valueMap)",
+          );
+          this.render.emitLine("if err != nil {");
+          this.render.indent(() => this.render.emitLine("return nil, err"));
+          this.render.emitLine("}");
+          this.render.emitLine("rewrittenData, err := json.Marshal(rewrittenValue)");
+          this.render.emitLine("if err != nil {");
+          this.render.indent(() => this.render.emitLine("return nil, err"));
+          this.render.emitLine("}");
+          this.render.emitLine(
+            "rewrittenPayload := ",
+            proto,
+            ".Clone(payload).(*",
+            commonv1,
+            ".Payload)",
+          );
+          this.render.emitLine("rewrittenPayload.Data = rewrittenData");
+          this.render.emitLine("return rewrittenPayload, nil");
+        },
+      );
+      this.render.ensureBlankLine();
+    }
+
+    this.render.emitLine(
+      "var TemporalNexusPayloadRewriters = map[TemporalNexusPayloadRewriterKey]TemporalNexusPayloadRewriter{",
+    );
+    this.render.indent(() => {
+      for (const rewriter of payloadRewriters) {
+        this.render.emitLine(
+          "{ServiceName: ",
+          this.renderStringLiteral(rewriter.serviceName),
+          ", OperationName: ",
+          this.renderStringLiteral(rewriter.operationName),
+          "}: ",
+          rewriter.helperName,
+          ",",
+        );
+      }
+    });
+    this.render.emitLine("}");
+    this.render.ensureBlankLine();
+    this.render.emitBlock(
+      "func GetTemporalNexusPayloadRewriter(serviceName, operationName string) TemporalNexusPayloadRewriter",
+      () => {
+        this.render.emitLine(
+          "return TemporalNexusPayloadRewriters[TemporalNexusPayloadRewriterKey{ServiceName: serviceName, OperationName: operationName}]",
+        );
+      },
+    );
+    this.render.ensureBlankLine();
+    this.render.emitBlock(
+      "func IsTemporalNexusOperation(serviceName, operationName string) bool",
+      () => {
+        this.render.emitLine(
+          "return GetTemporalNexusPayloadRewriter(serviceName, operationName) != nil",
+        );
+      },
+    );
+  }
+
+  getNexusPayloadRewriters(): readonly TemporalOperationPayloadRewriter[] {
+    if (this.nexusPayloadRewriters) {
+      return this.nexusPayloadRewriters;
+    }
+    this.nexusPayloadRewriters = Object.entries(this.schema.services).flatMap(
+      ([serviceName, service]) =>
+        Object.entries(service.operations).flatMap(
+          ([operationName, operation]) => {
+            if (operation.input?.kind != "jsonSchema") {
+              return [];
+            }
+            const plan = this.getTemporalClassRewritePlanByName(
+              operation.input.name,
+            );
+            if (!plan) {
+              return [];
+            }
+            return [
+              {
+                serviceName,
+                operationName,
+                inputTypeName: operation.input.name,
+                helperName: this.makeTemporalNexusRewriterFunctionName(
+                  operation.input.name,
+                ),
+              },
+            ];
+          },
+        ),
+    );
+    return this.nexusPayloadRewriters;
+  }
+
+  getTemporalClassRewritePlans(): ReadonlyMap<
+    string,
+    TemporalClassRewritePlan
+  > {
+    if (!this.temporalClassRewritePlans) {
+      this.temporalClassRewritePlans = new Map();
+      for (const rewriter of this.getNexusPayloadRewriters()) {
+        this.getTemporalClassRewritePlanByName(rewriter.inputTypeName);
+      }
+    }
+    return this.temporalClassRewritePlans;
+  }
+
+  getTemporalClassRewritePlanByName(
+    typeName: string,
+  ): TemporalClassRewritePlan | undefined {
+    const topLevel = this.render.topLevels.get(typeName);
+    if (!(topLevel instanceof ClassType)) {
+      return undefined;
+    }
+    return this.getTemporalClassRewritePlan(topLevel);
+  }
+
+  getTemporalClassRewritePlan(
+    type: ClassType,
+  ): TemporalClassRewritePlan | undefined {
+    const typeName = this.render.sourcelikeToString(this.render.goType(type));
+    const existingPlan = this.temporalClassRewritePlans?.get(typeName);
+    if (existingPlan) {
+      return existingPlan;
+    }
+    if (this.temporalClassRewritePlanInProgress?.has(typeName)) {
+      return undefined;
+    }
+    if (!this.temporalClassRewritePlanInProgress) {
+      this.temporalClassRewritePlanInProgress = new Set();
+    }
+    this.temporalClassRewritePlanInProgress.add(typeName);
+
+    try {
+      const directRewriteKind = this.getTemporalDirectRewriteKind(typeName);
+      const fieldRewrites: TemporalFieldRewrite[] = [];
+      for (const [jsonName, property] of type.getProperties()) {
+        const terminalRewrite = this.getTemporalTerminalFieldRewrite(
+          typeName,
+          jsonName,
+        );
+        if (terminalRewrite) {
+          fieldRewrites.push(terminalRewrite);
+          continue;
+        }
+        const childRewrite = this.getTemporalChildFieldRewrite(
+          property.type,
+          jsonName,
+        );
+        if (childRewrite) {
+          fieldRewrites.push(childRewrite);
+        }
+      }
+      if (!directRewriteKind && fieldRewrites.length == 0) {
+        return undefined;
+      }
+      const plan: TemporalClassRewritePlan = {
+        typeName,
+        helperName: this.makeTemporalClassRewriteHelperName(typeName),
+        directRewriteKind,
+        onlyWhenVisitSearchAttributes: typeName == "SearchAttributes",
+        fieldRewrites,
+      };
+      if (!this.temporalClassRewritePlans) {
+        this.temporalClassRewritePlans = new Map();
+      }
+      this.temporalClassRewritePlans.set(typeName, plan);
+      return plan;
+    } finally {
+      this.temporalClassRewritePlanInProgress.delete(typeName);
+    }
+  }
+
+  getTemporalDirectRewriteKind(
+    typeName: string,
+  ): TemporalTerminalRewriteKind | undefined {
+    if (typeName == "Input") {
+      return "payloads";
+    }
+    return undefined;
+  }
+
+  getTemporalTerminalFieldRewrite(
+    typeName: string,
+    jsonName: string,
+  ): TemporalFieldRewrite | undefined {
+    if (typeName == "Header" && jsonName == "fields") {
+      return { kind: "payloadMap", jsonName, mapKind: "headerFields" };
+    }
+    if (typeName == "Memo" && jsonName == "fields") {
+      return { kind: "payloadMap", jsonName, mapKind: "memoFields" };
+    }
+    if (typeName == "SearchAttributes" && jsonName == "indexedFields") {
+      return { kind: "payloadMap", jsonName, mapKind: "searchAttributes" };
+    }
+    if (
+      typeName == "UserMetadata" &&
+      (jsonName == "summary" || jsonName == "details")
+    ) {
+      return { kind: "payload", jsonName };
+    }
+    if (typeName == "Input" && jsonName == "payloads") {
+      return { kind: "payloads", jsonName };
+    }
+    return undefined;
+  }
+
+  getTemporalChildFieldRewrite(
+    type: Type,
+    jsonName: string,
+  ): TemporalFieldRewrite | undefined {
+    const normalizedType = this.unwrapNullableType(type);
+    if (!normalizedType) {
+      return undefined;
+    }
+    if (normalizedType instanceof ClassType) {
+      const plan = this.getTemporalClassRewritePlan(normalizedType);
+      return plan
+        ? { kind: "object", jsonName, helperName: plan.helperName }
+        : undefined;
+    }
+    if (normalizedType instanceof ArrayType) {
+      const itemType = this.unwrapNullableType(normalizedType.items);
+      if (itemType instanceof ClassType) {
+        const plan = this.getTemporalClassRewritePlan(itemType);
+        return plan
+          ? { kind: "array", jsonName, helperName: plan.helperName }
+          : undefined;
+      }
+      return undefined;
+    }
+    if (normalizedType instanceof MapType) {
+      const valueType = this.unwrapNullableType(normalizedType.values);
+      if (valueType instanceof ClassType) {
+        const plan = this.getTemporalClassRewritePlan(valueType);
+        return plan
+          ? { kind: "map", jsonName, helperName: plan.helperName }
+          : undefined;
+      }
+    }
+    return undefined;
+  }
+
+  unwrapNullableType(type: Type): Type | undefined {
+    if (!(type instanceof UnionType)) {
+      return type;
+    }
+    const nonNullMembers = [...type.members].filter(
+      (member) => member.kind != "null",
+    );
+    return nonNullMembers.length == 1 ? nonNullMembers[0] : undefined;
   }
 
   emitService(serviceName: string, serviceSchema: PreparedService) {
