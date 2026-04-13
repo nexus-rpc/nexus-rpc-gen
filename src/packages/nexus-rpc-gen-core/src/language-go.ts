@@ -162,7 +162,7 @@ interface TemporalClassRewritePlan {
   fieldRewrites: TemporalFieldRewrite[];
 }
 
-interface TemporalOperationPayloadRewriter {
+interface TemporalOperationPayloadVisitor {
   serviceName: string;
   operationName: string;
   inputTypeName: string;
@@ -177,8 +177,8 @@ class GoRenderAdapter extends RenderAdapter<GoRenderAccessible> {
   private temporalClassRewritePlanInProgress:
     | Set<string>
     | undefined;
-  private nexusPayloadRewriters:
-    | readonly TemporalOperationPayloadRewriter[]
+  private nexusPayloadVisitors:
+    | readonly TemporalOperationPayloadVisitor[]
     | undefined;
 
   assertValidOptions() {
@@ -236,7 +236,7 @@ class GoRenderAdapter extends RenderAdapter<GoRenderAccessible> {
       origImports.add("github.com/nexus-rpc/sdk-go/nexus");
       if (
         this.nexusRendererOptions.temporalNexusPayloadCodecSupport &&
-        this.getNexusPayloadRewriters().length > 0
+        this.getNexusPayloadVisitors().length > 0
       ) {
         origImports.add("encoding/json");
         origImports.add("errors");
@@ -323,7 +323,7 @@ class GoRenderAdapter extends RenderAdapter<GoRenderAccessible> {
   emitTemporalNexusPayloadSupport() {
     if (
       !this.nexusRendererOptions.temporalNexusPayloadCodecSupport ||
-      this.getNexusPayloadRewriters().length == 0
+      this.getNexusPayloadVisitors().length == 0
     ) {
       return;
     }
@@ -334,7 +334,7 @@ class GoRenderAdapter extends RenderAdapter<GoRenderAccessible> {
 
     this.render.ensureBlankLine(2);
     this.render.emitLine(
-      "type TemporalNexusPayloadVisitor func([]*",
+      "type TemporalNexusPayloadVisitorFunc func([]*",
       commonv1,
       ".Payload) ([]*",
       commonv1,
@@ -342,20 +342,20 @@ class GoRenderAdapter extends RenderAdapter<GoRenderAccessible> {
     );
     this.render.ensureBlankLine();
     this.render.emitLine(
-      "type TemporalNexusPayloadRewriter func(*",
+      "type TemporalNexusPayloadVisitor func(*",
       commonv1,
-      ".Payload, TemporalNexusPayloadVisitor, bool) (*",
+      ".Payload, TemporalNexusPayloadVisitorFunc, bool) (*",
       commonv1,
       ".Payload, error)",
     );
     this.render.ensureBlankLine();
-    this.render.emitBlock("type TemporalNexusPayloadRewriterKey struct", () => {
+    this.render.emitBlock("type TemporalNexusPayloadVisitorKey struct", () => {
       this.render.emitLine("ServiceName string");
       this.render.emitLine("OperationName string");
     });
     this.render.ensureBlankLine();
-    this.render.emitBlock("type temporalNexusPayloadRewriter struct", () => {
-      this.render.emitLine("payloadVisitor TemporalNexusPayloadVisitor");
+    this.render.emitBlock("type temporalNexusPayloadVisitor struct", () => {
+      this.render.emitLine("payloadVisitor TemporalNexusPayloadVisitorFunc");
       this.render.emitLine("visitSearchAttributes bool");
     });
     this.render.ensureBlankLine();
@@ -415,7 +415,7 @@ class GoRenderAdapter extends RenderAdapter<GoRenderAccessible> {
     this.render.ensureBlankLine();
     this.render.emitBlock(
       [
-        "func (r *temporalNexusPayloadRewriter) rewritePayloadJSON(",
+        "func (r *temporalNexusPayloadVisitor) rewritePayloadJSON(",
         "value any",
         ") (any, error)",
       ],
@@ -449,7 +449,7 @@ class GoRenderAdapter extends RenderAdapter<GoRenderAccessible> {
     this.render.ensureBlankLine();
     this.render.emitBlock(
       [
-        "func (r *temporalNexusPayloadRewriter) rewritePayloadsJSON(",
+        "func (r *temporalNexusPayloadVisitor) rewritePayloadsJSON(",
         "value any",
         ") (any, error)",
       ],
@@ -483,7 +483,7 @@ class GoRenderAdapter extends RenderAdapter<GoRenderAccessible> {
     ] as const) {
       this.render.emitBlock(
         [
-          "func (r *temporalNexusPayloadRewriter) ",
+          "func (r *temporalNexusPayloadVisitor) ",
           helperName,
           "(value any) (any, error)",
         ],
@@ -561,7 +561,7 @@ class GoRenderAdapter extends RenderAdapter<GoRenderAccessible> {
           this.render.emitLine("if !ok {");
           this.render.indent(() =>
             this.render.emitLine(
-              'return nil, errors.New("temporal nexus payload rewriter expected object JSON")',
+              'return nil, errors.New("temporal nexus payload visitor expected object JSON")',
             ),
           );
           this.render.emitLine("}");
@@ -583,7 +583,7 @@ class GoRenderAdapter extends RenderAdapter<GoRenderAccessible> {
   emitTemporalClassRewritePlan(plan: TemporalClassRewritePlan) {
     this.render.emitBlock(
       [
-        "func (r *temporalNexusPayloadRewriter) ",
+        "func (r *temporalNexusPayloadVisitor) ",
         plan.helperName,
         "(value map[string]any) (map[string]any, error)",
       ],
@@ -602,7 +602,7 @@ class GoRenderAdapter extends RenderAdapter<GoRenderAccessible> {
           this.render.emitLine("if !ok {");
           this.render.indent(() =>
             this.render.emitLine(
-              'return nil, errors.New("temporal nexus payload rewriter expected object JSON")',
+              'return nil, errors.New("temporal nexus payload visitor expected object JSON")',
             ),
           );
           this.render.emitLine("}");
@@ -618,7 +618,7 @@ class GoRenderAdapter extends RenderAdapter<GoRenderAccessible> {
           this.render.emitLine("if !ok {");
           this.render.indent(() =>
             this.render.emitLine(
-              'return nil, errors.New("temporal nexus payload rewriter expected object JSON")',
+              'return nil, errors.New("temporal nexus payload visitor expected object JSON")',
             ),
           );
           this.render.emitLine("}");
@@ -680,7 +680,7 @@ class GoRenderAdapter extends RenderAdapter<GoRenderAccessible> {
         this.render.emitLine("if !ok {");
         this.render.indent(() =>
           this.render.emitLine(
-            'return nil, errors.New("temporal nexus payload rewriter expected object field")',
+            'return nil, errors.New("temporal nexus payload visitor expected object field")',
           ),
         );
         this.render.emitLine("}");
@@ -700,7 +700,7 @@ class GoRenderAdapter extends RenderAdapter<GoRenderAccessible> {
         this.render.emitLine("if !ok {");
         this.render.indent(() =>
           this.render.emitLine(
-            'return nil, errors.New("temporal nexus payload rewriter expected array field")',
+            'return nil, errors.New("temporal nexus payload visitor expected array field")',
           ),
         );
         this.render.emitLine("}");
@@ -710,7 +710,7 @@ class GoRenderAdapter extends RenderAdapter<GoRenderAccessible> {
           this.render.emitLine("if !ok {");
           this.render.indent(() =>
             this.render.emitLine(
-              'return nil, errors.New("temporal nexus payload rewriter expected object array item")',
+              'return nil, errors.New("temporal nexus payload visitor expected object array item")',
             ),
           );
           this.render.emitLine("}");
@@ -731,7 +731,7 @@ class GoRenderAdapter extends RenderAdapter<GoRenderAccessible> {
       this.render.emitLine("if !ok {");
       this.render.indent(() =>
         this.render.emitLine(
-          'return nil, errors.New("temporal nexus payload rewriter expected map field")',
+          'return nil, errors.New("temporal nexus payload visitor expected map field")',
         ),
       );
       this.render.emitLine("}");
@@ -741,7 +741,7 @@ class GoRenderAdapter extends RenderAdapter<GoRenderAccessible> {
         this.render.emitLine("if !ok {");
         this.render.indent(() =>
           this.render.emitLine(
-            'return nil, errors.New("temporal nexus payload rewriter expected object map item")',
+            'return nil, errors.New("temporal nexus payload visitor expected object map item")',
           ),
         );
         this.render.emitLine("}");
@@ -761,10 +761,10 @@ class GoRenderAdapter extends RenderAdapter<GoRenderAccessible> {
   }
 
   emitTemporalNexusPayloadRegistry() {
-    const payloadRewriters = this.getNexusPayloadRewriters();
+    const payloadVisitors = this.getNexusPayloadVisitors();
     if (
       !this.nexusRendererOptions.temporalNexusPayloadCodecSupport ||
-      payloadRewriters.length == 0
+      payloadVisitors.length == 0
     ) {
       return;
     }
@@ -772,15 +772,15 @@ class GoRenderAdapter extends RenderAdapter<GoRenderAccessible> {
     const commonv1 = this.imports["go.temporal.io/api/common/v1"];
     const proto = this.imports["google.golang.org/protobuf/proto"];
 
-    for (const rewriter of payloadRewriters) {
+    for (const visitor of payloadVisitors) {
       this.render.emitBlock(
         [
           "func ",
-          rewriter.helperName,
+          visitor.helperName,
           "(",
           "payload *",
           commonv1,
-          ".Payload, payloadVisitor TemporalNexusPayloadVisitor, visitSearchAttributes bool",
+          ".Payload, payloadVisitor TemporalNexusPayloadVisitorFunc, visitSearchAttributes bool",
           ") (*",
           commonv1,
           ".Payload, error)",
@@ -795,11 +795,11 @@ class GoRenderAdapter extends RenderAdapter<GoRenderAccessible> {
           this.render.indent(() => this.render.emitLine("return payload, nil"));
           this.render.emitLine("}");
           this.render.emitLine(
-            "rewriter := &temporalNexusPayloadRewriter{payloadVisitor: payloadVisitor, visitSearchAttributes: visitSearchAttributes}",
+            "visitor := &temporalNexusPayloadVisitor{payloadVisitor: payloadVisitor, visitSearchAttributes: visitSearchAttributes}",
           );
           this.render.emitLine(
-            "rewrittenValue, err := rewriter.",
-            this.makeTemporalClassRewriteHelperName(rewriter.inputTypeName),
+            "rewrittenValue, err := visitor.",
+            this.makeTemporalClassRewriteHelperName(visitor.inputTypeName),
             "(valueMap)",
           );
           this.render.emitLine("if err != nil {");
@@ -824,17 +824,17 @@ class GoRenderAdapter extends RenderAdapter<GoRenderAccessible> {
     }
 
     this.render.emitLine(
-      "var TemporalNexusPayloadRewriters = map[TemporalNexusPayloadRewriterKey]TemporalNexusPayloadRewriter{",
+      "var TemporalNexusPayloadVisitors = map[TemporalNexusPayloadVisitorKey]TemporalNexusPayloadVisitor{",
     );
     this.render.indent(() => {
-      for (const rewriter of payloadRewriters) {
+      for (const visitor of payloadVisitors) {
         this.render.emitLine(
           "{ServiceName: ",
-          this.renderStringLiteral(rewriter.serviceName),
+          this.renderStringLiteral(visitor.serviceName),
           ", OperationName: ",
-          this.renderStringLiteral(rewriter.operationName),
+          this.renderStringLiteral(visitor.operationName),
           "}: ",
-          rewriter.helperName,
+          visitor.helperName,
           ",",
         );
       }
@@ -842,29 +842,29 @@ class GoRenderAdapter extends RenderAdapter<GoRenderAccessible> {
     this.render.emitLine("}");
     this.render.ensureBlankLine();
     this.render.emitBlock(
-      "func GetTemporalNexusPayloadRewriter(serviceName, operationName string) TemporalNexusPayloadRewriter",
+      "func GetTemporalNexusPayloadVisitor(serviceName, operationName string) TemporalNexusPayloadVisitor",
       () => {
         this.render.emitLine(
-          "return TemporalNexusPayloadRewriters[TemporalNexusPayloadRewriterKey{ServiceName: serviceName, OperationName: operationName}]",
+          "return TemporalNexusPayloadVisitors[TemporalNexusPayloadVisitorKey{ServiceName: serviceName, OperationName: operationName}]",
         );
       },
     );
     this.render.ensureBlankLine();
     this.render.emitBlock(
       "func IsTemporalNexusOperation(serviceName, operationName string) bool",
-      () => {
+        () => {
         this.render.emitLine(
-          "return GetTemporalNexusPayloadRewriter(serviceName, operationName) != nil",
+          "return GetTemporalNexusPayloadVisitor(serviceName, operationName) != nil",
         );
       },
     );
   }
 
-  getNexusPayloadRewriters(): readonly TemporalOperationPayloadRewriter[] {
-    if (this.nexusPayloadRewriters) {
-      return this.nexusPayloadRewriters;
+  getNexusPayloadVisitors(): readonly TemporalOperationPayloadVisitor[] {
+    if (this.nexusPayloadVisitors) {
+      return this.nexusPayloadVisitors;
     }
-    this.nexusPayloadRewriters = Object.entries(this.schema.services).flatMap(
+    this.nexusPayloadVisitors = Object.entries(this.schema.services).flatMap(
       ([serviceName, service]) =>
         Object.entries(service.operations).flatMap(
           ([operationName, operation]) => {
@@ -890,7 +890,7 @@ class GoRenderAdapter extends RenderAdapter<GoRenderAccessible> {
           },
         ),
     );
-    return this.nexusPayloadRewriters;
+    return this.nexusPayloadVisitors;
   }
 
   getTemporalClassRewritePlans(): ReadonlyMap<
@@ -899,8 +899,8 @@ class GoRenderAdapter extends RenderAdapter<GoRenderAccessible> {
   > {
     if (!this.temporalClassRewritePlans) {
       this.temporalClassRewritePlans = new Map();
-      for (const rewriter of this.getNexusPayloadRewriters()) {
-        this.getTemporalClassRewritePlanByName(rewriter.inputTypeName);
+      for (const visitor of this.getNexusPayloadVisitors()) {
+        this.getTemporalClassRewritePlanByName(visitor.inputTypeName);
       }
     }
     return this.temporalClassRewritePlans;

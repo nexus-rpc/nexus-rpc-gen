@@ -12,7 +12,7 @@ test("Go temporal nexus payload codec support is optional", async () => {
   );
   withoutFlag.assertSuccess();
   assert.ok(
-    !withoutFlag.stdout.includes("TemporalNexusPayloadRewriters"),
+    !withoutFlag.stdout.includes("TemporalNexusPayloadVisitors"),
     "registry should not be emitted without the generic flag",
   );
 
@@ -30,11 +30,11 @@ test("Go temporal nexus payload codec support is optional", async () => {
   );
   withFlag.assertSuccess();
   assert.ok(
-    withFlag.stdout.includes("var TemporalNexusPayloadRewriters ="),
+    withFlag.stdout.includes("var TemporalNexusPayloadVisitors ="),
     "registry should be emitted when the generic flag is enabled",
   );
   assert.ok(
-    withFlag.stdout.includes("func GetTemporalNexusPayloadRewriter("),
+    withFlag.stdout.includes("func GetTemporalNexusPayloadVisitor("),
     "getter should be emitted when payload codec support is enabled",
   );
   assert.ok(
@@ -45,7 +45,7 @@ test("Go temporal nexus payload codec support is optional", async () => {
   );
   assert.ok(
     withFlag.stdout.includes(
-      "func (r *temporalNexusPayloadRewriter) rewriteUserMetadataJSON(",
+      "func (r *temporalNexusPayloadVisitor) rewriteUserMetadataJSON(",
     ),
     "user metadata should have a structural rewriter helper",
   );
@@ -57,7 +57,7 @@ test("Go temporal nexus payload codec support is optional", async () => {
   );
   assert.ok(
     withFlag.stdout.includes(
-      "func (r *temporalNexusPayloadRewriter) rewriteSearchAttributesJSON(",
+      "func (r *temporalNexusPayloadVisitor) rewriteSearchAttributesJSON(",
     ),
     "search attributes should have a structural rewriter helper",
   );
@@ -66,7 +66,7 @@ test("Go temporal nexus payload codec support is optional", async () => {
     "search attribute rewriting should be opt-in",
   );
   assert.ok(
-    withFlag.stdout.includes("type temporalNexusPayloadRewriter struct {"),
+    withFlag.stdout.includes("type temporalNexusPayloadVisitor struct {"),
     "generated helpers should be grouped in an object",
   );
 });
