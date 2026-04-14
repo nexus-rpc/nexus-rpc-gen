@@ -122,7 +122,7 @@ interface TemporalClassRewritePlan {
   fieldRewrites: TemporalFieldRewrite[];
 }
 
-interface TemporalOperationPayloadRewriter {
+interface TemporalOperationPayloadVisitor {
   serviceName: string;
   operationName: string;
   inputTypeName: string;
@@ -138,8 +138,8 @@ class PythonRenderAdapter extends RenderAdapter<PythonRenderAccessible> {
   private temporalClassRewritePlanInProgress:
     | Set<string>
     | undefined;
-  private nexusPayloadRewriters:
-    | readonly TemporalOperationPayloadRewriter[]
+  private nexusPayloadVisitors:
+    | readonly TemporalOperationPayloadVisitor[]
     | undefined;
 
   constructor(render: ConvenienceRenderer, rendererOptions: RendererOptions) {
@@ -170,13 +170,7 @@ class PythonRenderAdapter extends RenderAdapter<PythonRenderAccessible> {
   }
 
   emitAdditionalImports() {
-    if (
-      [...this.render.topLevels.values()].some(
-        (type) => type instanceof ClassType,
-      )
-    ) {
-      this.render.emitLine("from dataclasses import dataclass");
-    }
+    this.render.emitLine("from dataclasses import dataclass");
     if (Object.keys(this.schema.services).length > 0) {
       this.render.emitLine("from nexusrpc import Operation, service");
     }
@@ -205,7 +199,7 @@ class PythonRenderAdapter extends RenderAdapter<PythonRenderAccessible> {
     }
     if (
       this.nexusRendererOptions.temporalNexusPayloadCodecSupport &&
-      this.getNexusPayloadRewriters().length > 0
+      this.getNexusPayloadVisitors().length > 0
     ) {
       this.render.emitLine("import collections.abc");
       this.render.emitLine("import json");
@@ -219,13 +213,13 @@ class PythonRenderAdapter extends RenderAdapter<PythonRenderAccessible> {
   emitTemporalNexusPayloadSupport() {
     if (
       !this.nexusRendererOptions.temporalNexusPayloadCodecSupport ||
-      this.getNexusPayloadRewriters().length == 0
+      this.getNexusPayloadVisitors().length == 0
     ) {
       return;
     }
 
     this.render.ensureBlankLine();
-    this.render.emitBlock("class _TemporalNexusPayloadRewriter:", () => {
+    this.render.emitBlock("class _TemporalNexusPayloadVisitor:", () => {
       this.render.emitBlock(
         [
           "def __init__(",
@@ -235,15 +229,15 @@ class PythonRenderAdapter extends RenderAdapter<PythonRenderAccessible> {
           "):",
         ],
         () => {
-          this.render.emitLine("self._payload_visitor = payload_visitor");
-          this.render.emitLine(
-            "self._visit_search_attributes = visit_search_attributes",
-          );
+        this.render.emitLine("self._payload_visitor = payload_visitor");
+        this.render.emitLine(
+          "self._visit_search_attributes = visit_search_attributes",
+        );
         },
       );
       this.render.ensureBlankLine();
       this.render.emitBlock(
-        ["async def _rewrite_payload_json(", "self, value: dict", ") -> dict:"],
+        ["async def _visit_payload_json(", "self, value: dict", ") -> dict:"],
         () => {
           this.render.emitLine(
             "payload = ParseDict(value, ",
@@ -251,15 +245,15 @@ class PythonRenderAdapter extends RenderAdapter<PythonRenderAccessible> {
             ")",
           );
           this.render.emitLine(
-            "[rewritten_payload] = await self._payload_visitor([payload])",
+            "[visited_payload] = await self._payload_visitor([payload])",
           );
-          this.render.emitLine("return MessageToDict(rewritten_payload)");
+          this.render.emitLine("return MessageToDict(visited_payload)");
         },
       );
       this.render.ensureBlankLine();
       this.render.emitBlock(
         [
-          "async def _rewrite_payloads_json(",
+          "async def _visit_payloads_json(",
           "self, value: dict",
           ") -> dict:",
         ],
@@ -270,17 +264,17 @@ class PythonRenderAdapter extends RenderAdapter<PythonRenderAccessible> {
             ")",
           );
           this.render.emitLine(
-            "rewritten_payloads = await self._payload_visitor(payloads.payloads)",
+            "visited_payloads = await self._payload_visitor(payloads.payloads)",
           );
           this.render.emitLine("del payloads.payloads[:]");
-          this.render.emitLine("payloads.payloads.extend(rewritten_payloads)");
+          this.render.emitLine("payloads.payloads.extend(visited_payloads)");
           this.render.emitLine("return MessageToDict(payloads)");
         },
       );
       this.render.ensureBlankLine();
       this.render.emitBlock(
         [
-          "async def _rewrite_payload_map_json(",
+          "async def _visit_payload_map_json(",
           "self, message_type: type, value: dict",
           ") -> dict:",
         ],
@@ -288,13 +282,13 @@ class PythonRenderAdapter extends RenderAdapter<PythonRenderAccessible> {
           this.render.emitLine("message = message_type()");
           this.render.emitLine("keys = list(value.keys())");
           this.render.emitLine(
-            "rewritten_payloads = await self._payload_visitor([ParseDict(value[key], temporalio.api.common.v1.Payload()) for key in keys])",
+            "visited_payloads = await self._payload_visitor([ParseDict(value[key], temporalio.api.common.v1.Payload()) for key in keys])",
           );
           this.render.emitBlock(
-            "for key, rewritten_payload in zip(keys, rewritten_payloads):",
+            "for key, visited_payload in zip(keys, visited_payloads):",
             () => {
               this.render.emitLine(
-                "message.fields[key].CopyFrom(rewritten_payload)",
+                "message.fields[key].CopyFrom(visited_payload)",
               );
             },
           );
@@ -311,20 +305,20 @@ class PythonRenderAdapter extends RenderAdapter<PythonRenderAccessible> {
   }
 
   emitTemporalNexusPayloadRegistry() {
-    const payloadRewriters = this.getNexusPayloadRewriters();
+    const payloadVisitors = this.getNexusPayloadVisitors();
     if (
       !this.nexusRendererOptions.temporalNexusPayloadCodecSupport ||
-      payloadRewriters.length == 0
+      payloadVisitors.length == 0
     ) {
       return;
     }
 
     this.render.ensureBlankLine(2);
-    for (const rewriter of payloadRewriters) {
+    for (const visitor of payloadVisitors) {
       this.render.emitBlock(
         [
           "async def ",
-          rewriter.helperName,
+          visitor.helperName,
           "(",
           "payload: temporalio.api.common.v1.Payload, ",
           "payload_visitor: collections.abc.Callable[[collections.abc.Sequence[temporalio.api.common.v1.Payload]], collections.abc.Awaitable[list[temporalio.api.common.v1.Payload]]]",
@@ -332,46 +326,45 @@ class PythonRenderAdapter extends RenderAdapter<PythonRenderAccessible> {
           ") -> temporalio.api.common.v1.Payload:",
         ],
         () => {
-          this.render.emitLine("try:");
-          this.render.indent(() => {
-            this.render.emitLine("value = json.loads(payload.data)");
-          });
-          this.render.emitLine("except json.JSONDecodeError:");
-          this.render.indent(() => {
-            this.render.emitLine("return payload");
-          });
-          this.render.emitLine("if not isinstance(value, dict):");
-          this.render.indent(() => {
-            this.render.emitLine("return payload");
-          });
+        this.render.emitLine("try:");
+        this.render.indent(() => {
+          this.render.emitLine("value = json.loads(payload.data)");
+        });
+        this.render.emitLine("except json.JSONDecodeError:");
+        this.render.indent(() => {
+          this.render.emitLine("return payload");
+        });
+        this.render.emitLine("if not isinstance(value, dict):");
+        this.render.indent(() => {
+          this.render.emitLine("return payload");
+        });
           this.render.emitLine(
-            "rewriter = _TemporalNexusPayloadRewriter(",
+            "visitor = _TemporalNexusPayloadVisitor(",
             "payload_visitor, visit_search_attributes)",
           );
-          this.render.emitLine(
-            "rewritten = await ",
-            "rewriter.",
-            this.makeTemporalClassRewriteHelperName(rewriter.inputTypeName),
+        this.render.emitLine(
+            "visited = await visitor.",
+            this.makeTemporalClassVisitHelperName(visitor.inputTypeName),
             "(value)",
           );
           this.render.emitLine(
-            'return temporalio.api.common.v1.Payload(metadata=dict(payload.metadata), data=json.dumps(rewritten, separators=(",", ":"), sort_keys=True).encode())',
+            'return temporalio.api.common.v1.Payload(metadata=dict(payload.metadata), data=json.dumps(visited, separators=(",", ":"), sort_keys=True).encode())',
           );
         },
       );
       this.render.ensureBlankLine();
     }
 
-    this.render.emitLine("__temporal_nexus_payload_rewriters__ = {");
+    this.render.emitLine("__temporal_nexus_payload_visitors__ = {");
     this.render.indent(() => {
-      for (const rewriter of payloadRewriters) {
+      for (const visitor of payloadVisitors) {
         this.render.emitLine(
           "(",
-          this.render.string(rewriter.serviceName),
+          this.render.string(visitor.serviceName),
           ", ",
-          this.render.string(rewriter.operationName),
+          this.render.string(visitor.operationName),
           "): ",
-          rewriter.helperName,
+          visitor.helperName,
           ",",
         );
       }
@@ -380,11 +373,11 @@ class PythonRenderAdapter extends RenderAdapter<PythonRenderAccessible> {
     this.render.ensureBlankLine();
   }
 
-  getNexusPayloadRewriters(): readonly TemporalOperationPayloadRewriter[] {
-    if (this.nexusPayloadRewriters) {
-      return this.nexusPayloadRewriters;
+  getNexusPayloadVisitors(): readonly TemporalOperationPayloadVisitor[] {
+    if (this.nexusPayloadVisitors) {
+      return this.nexusPayloadVisitors;
     }
-    this.nexusPayloadRewriters = Object.entries(this.schema.services).flatMap(
+    this.nexusPayloadVisitors = Object.entries(this.schema.services).flatMap(
       ([serviceName, service]) =>
         Object.entries(service.operations).flatMap(
           ([operationName, operation]) => {
@@ -402,15 +395,15 @@ class PythonRenderAdapter extends RenderAdapter<PythonRenderAccessible> {
                 serviceName,
                 operationName,
                 inputTypeName: operation.input.name,
-                helperName: this.makeTemporalNexusRewriterFunctionName(
-                  operation.input.name,
-                ),
+            helperName: this.makeTemporalNexusVisitorFunctionName(
+              operation.input.name,
+            ),
               },
             ];
           },
         ),
     );
-    return this.nexusPayloadRewriters;
+    return this.nexusPayloadVisitors;
   }
 
   getTemporalClassRewritePlans(): ReadonlyMap<
@@ -419,8 +412,8 @@ class PythonRenderAdapter extends RenderAdapter<PythonRenderAccessible> {
   > {
     if (!this.temporalClassRewritePlans) {
       this.temporalClassRewritePlans = new Map();
-      for (const rewriter of this.getNexusPayloadRewriters()) {
-        this.getTemporalClassRewritePlanByName(rewriter.inputTypeName);
+      for (const visitor of this.getNexusPayloadVisitors()) {
+        this.getTemporalClassRewritePlanByName(visitor.inputTypeName);
       }
     }
     return this.temporalClassRewritePlans;
@@ -479,7 +472,7 @@ class PythonRenderAdapter extends RenderAdapter<PythonRenderAccessible> {
 
       const plan: TemporalClassRewritePlan = {
         typeName,
-        helperName: this.makeTemporalClassRewriteHelperName(typeName),
+        helperName: this.makeTemporalClassVisitHelperName(typeName),
         directRewriteKind,
         onlyWhenVisitSearchAttributes: typeName == "SearchAttributes",
         fieldRewrites,
@@ -608,34 +601,34 @@ class PythonRenderAdapter extends RenderAdapter<PythonRenderAccessible> {
         }
         if (plan.directRewriteKind == "payload") {
           this.render.emitLine(
-            "return await self._rewrite_payload_json(value)",
+            "return await self._visit_payload_json(value)",
           );
           return;
         }
         if (plan.directRewriteKind == "payloads") {
           this.render.emitLine(
-            "return await self._rewrite_payloads_json(value)",
+            "return await self._visit_payloads_json(value)",
           );
           return;
         }
-        this.render.emitLine("rewritten = dict(value)");
+        this.render.emitLine("visited = dict(value)");
         for (const fieldRewrite of plan.fieldRewrites) {
           this.emitTemporalFieldRewrite(fieldRewrite);
         }
-        this.render.emitLine("return rewritten");
+        this.render.emitLine("return visited");
       },
     );
   }
 
   emitTemporalFieldRewrite(fieldRewrite: TemporalFieldRewrite) {
-    const fieldReference = `rewritten[${JSON.stringify(fieldRewrite.jsonName)}]`;
-    const fieldLookup = `rewritten.get(${JSON.stringify(fieldRewrite.jsonName)})`;
+    const fieldReference = `visited[${JSON.stringify(fieldRewrite.jsonName)}]`;
+    const fieldLookup = `visited.get(${JSON.stringify(fieldRewrite.jsonName)})`;
     if (fieldRewrite.kind == "payload") {
       this.render.emitLine("if ", fieldLookup, " is not None:");
       this.render.indent(() => {
         this.render.emitLine(
           fieldReference,
-          " = await self._rewrite_payload_json(",
+          " = await self._visit_payload_json(",
           fieldReference,
           ")",
         );
@@ -647,7 +640,7 @@ class PythonRenderAdapter extends RenderAdapter<PythonRenderAccessible> {
       this.render.indent(() => {
         this.render.emitLine(
           fieldReference,
-          " = await self._rewrite_payloads_json(",
+            " = await self._visit_payloads_json(",
           fieldReference,
           ")",
         );
@@ -659,7 +652,7 @@ class PythonRenderAdapter extends RenderAdapter<PythonRenderAccessible> {
       this.render.indent(() => {
         this.render.emitLine(
           fieldReference,
-          " = await self._rewrite_payload_map_json(",
+            " = await self._visit_payload_map_json(",
           fieldRewrite.messageType,
           ", ",
           fieldReference,
@@ -788,10 +781,7 @@ class PythonRenderAdapter extends RenderAdapter<PythonRenderAccessible> {
       const bOptional = this.isOptionalType(b.type);
       return Number(aOptional) - Number(bOptional);
     });
-    this.render.emitLine(
-      "@",
-      this.render.withImport("dataclasses", "dataclass"),
-    );
+    this.render.emitLine("@dataclass");
     this.render.declareType(t, () => {
       if (t.getProperties().size === 0) {
         this.render.emitLine("pass");
@@ -815,12 +805,12 @@ class PythonRenderAdapter extends RenderAdapter<PythonRenderAccessible> {
     );
   }
 
-  makeTemporalNexusRewriterFunctionName(inputTypeName: string): string {
-    return `_temporal_nexus_rewrite_${this.propertyNamer.nameStyle(inputTypeName)}`;
+  makeTemporalNexusVisitorFunctionName(inputTypeName: string): string {
+    return `_temporal_nexus_visit_${this.propertyNamer.nameStyle(inputTypeName)}`;
   }
 
-  makeTemporalClassRewriteHelperName(typeName: string): string {
-    return `_temporal_nexus_rewrite_${this.propertyNamer.nameStyle(typeName)}_json`;
+  makeTemporalClassVisitHelperName(typeName: string): string {
+    return `_temporal_nexus_visit_${this.propertyNamer.nameStyle(typeName)}_json`;
   }
 
   getNexusType(

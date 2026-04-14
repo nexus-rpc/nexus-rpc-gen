@@ -3,10 +3,8 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import Optional
 from datetime import datetime
-from dataclasses import dataclass
 from nexusrpc import Operation, service
 import collections
 import services.types
@@ -35,13 +33,13 @@ class SharedObject:
 
 @dataclass
 class ComplexInput:
-    selfRef: Optional['ComplexInput'] = None
+    selfRef: Optional["ComplexInput"] = None
     someSharedObj: Optional[SharedObject] = None
 
 
 @dataclass
 class ComplexOutput:
-    selfRef: Optional['ComplexOutput'] = None
+    selfRef: Optional["ComplexOutput"] = None
     someSharedObj: Optional[SharedObject] = None
 
 
@@ -66,20 +64,31 @@ class DateInput:
 class KitchenSinkService:
     """A service for all types of operations"""
 
-    scalar_arg_scalar_result: Operation[str, int] = Operation(name="scalarArgScalarResult")
+    scalar_arg_scalar_result: Operation[str, int] = Operation(
+        name="scalarArgScalarResult"
+    )
     """Counts the characters in the string"""
 
-    complex_arg_complex_result_inline: Operation[KitchenSinkServiceComplexArgComplexResultInlineInput, KitchenSinkServiceComplexArgComplexResultInlineOutput] = Operation(name="complexArgComplexResultInline")
+    complex_arg_complex_result_inline: Operation[
+        KitchenSinkServiceComplexArgComplexResultInlineInput,
+        KitchenSinkServiceComplexArgComplexResultInlineOutput,
+    ] = Operation(name="complexArgComplexResultInline")
     """Counts the characters in a string"""
 
-    scalar_arg_scalar_result_external: Operation[str, int] = Operation(name="scalarArgScalarResultExternal")
+    scalar_arg_scalar_result_external: Operation[str, int] = Operation(
+        name="scalarArgScalarResultExternal"
+    )
 
-    complex_arg_complex_result_external: Operation[ComplexInput, ComplexOutput] = Operation(name="complexArgComplexResultExternal")
+    complex_arg_complex_result_external: Operation[ComplexInput, ComplexOutput] = (
+        Operation(name="complexArgComplexResultExternal")
+    )
 
 
 @service(name="Strange{Item}")
 class StrangeItemService:
-    strange_item: Operation[StrangeItem, PurpleStrangeItem] = Operation(name="Strange{Item}")
+    strange_item: Operation[StrangeItem, PurpleStrangeItem] = Operation(
+        name="Strange{Item}"
+    )
 
     strange_item2: Operation[None, None] = Operation(name="StrangeItem")
 
@@ -96,9 +105,13 @@ class ReservedWordService:
 
 @service
 class ExistingTypesService:
-    specific_types_for_some_langs: Operation[services.types.MyExistingType, ComplexOutput] = Operation(name="specificTypesForSomeLangs")
+    specific_types_for_some_langs: Operation[
+        services.types.MyExistingType, ComplexOutput
+    ] = Operation(name="specificTypesForSomeLangs")
 
-    specific_types_for_other_langs: Operation[ComplexInput, collections.deque] = Operation(name="specificTypesForOtherLangs")
+    specific_types_for_other_langs: Operation[ComplexInput, collections.deque] = (
+        Operation(name="specificTypesForOtherLangs")
+    )
 
 
 @service

@@ -14,7 +14,7 @@ test("Python temporal nexus payload codec support is optional", async () => {
   );
   withoutFlag.assertSuccess();
   assert.ok(
-    !withoutFlag.stdout.includes("__temporal_nexus_payload_rewriters__"),
+    !withoutFlag.stdout.includes("__temporal_nexus_payload_visitors__"),
     "registry should not be emitted without the generic flag",
   );
 
@@ -30,12 +30,12 @@ test("Python temporal nexus payload codec support is optional", async () => {
   );
   withFlag.assertSuccess();
   assert.ok(
-    withFlag.stdout.includes("__temporal_nexus_payload_rewriters__"),
+    withFlag.stdout.includes("__temporal_nexus_payload_visitors__"),
     "registry should be emitted when the generic flag is enabled",
   );
   assert.ok(
     !withFlag.stdout.includes("_temporal_nexus_encode_json_value"),
-    "generated Python should use structural rewriters instead of a generic JSON walk",
+    "generated Python should use structural visitors instead of a generic JSON walk",
   );
   assert.ok(
     withFlag.stdout.includes(
@@ -57,39 +57,39 @@ test("Python temporal nexus payload codec support is optional", async () => {
   );
   assert.ok(
     withFlag.stdout.includes(
-      "async def _temporal_nexus_rewrite_user_metadata_json(",
+      "async def _temporal_nexus_visit_user_metadata_json(",
     ),
-    "user metadata should have a structural rewriter helper",
+    "user metadata should have a structural visitor helper",
   );
   assert.ok(
     withFlag.stdout.includes(
-      'rewritten["summary"] = await self._rewrite_payload_json(',
+      'visited["summary"] = await self._visit_payload_json(',
     ),
-    "user metadata summary should be rewritten structurally",
+    "user metadata summary should be visited structurally",
   );
   assert.ok(
     withFlag.stdout.includes(
-      'rewritten["userMetadata"] = await self._temporal_nexus_rewrite_user_metadata_json',
+      'visited["userMetadata"] = await self._temporal_nexus_visit_user_metadata_json',
     ),
-    "root input should structurally rewrite nested user metadata",
+    "root input should structurally visit nested user metadata",
   );
   assert.ok(
     withFlag.stdout.includes(
-      "async def _temporal_nexus_rewrite_search_attributes_json(",
+      "async def _temporal_nexus_visit_search_attributes_json(",
     ),
-    "search attributes should have a structural rewriter helper",
+    "search attributes should have a structural visitor helper",
   );
   assert.ok(
     withFlag.stdout.includes("if not self._visit_search_attributes:"),
-    "search attribute rewriting should be opt-in",
+    "search attribute visiting should be opt-in",
   );
   assert.ok(
-    withFlag.stdout.includes("class _TemporalNexusPayloadRewriter:"),
+    withFlag.stdout.includes("class _TemporalNexusPayloadVisitor:"),
     "generated helpers should be grouped in an object",
   );
 });
 
-test("Python temporal nexus payload rewriter registry supports multiple services and operations", async () => {
+test("Python temporal nexus payload visitor registry supports multiple services and operations", async () => {
   const result = await runRpcGen(
     [
       "--lang",
@@ -112,7 +112,7 @@ test("Python temporal nexus payload rewriter registry supports multiple services
     );
   }
   assert.equal(
-    result.stdout.match(/\(".*?", ".*?"\): _temporal_nexus_rewrite_/g)?.length,
+    result.stdout.match(/\(".*?", ".*?"\): _temporal_nexus_visit_/g)?.length,
     3,
     "registry should contain exactly one entry per service/operation pair",
   );

@@ -1,4 +1,11 @@
 import { spawn, type SpawnOptions } from "node:child_process";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const packageRoot = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "../../../",
+);
 
 export class SpawnResult {
   cmd: string;
@@ -31,7 +38,7 @@ export function runRpcGen(
 ): Promise<SpawnResult> {
   return spawnAsync("npm", ["run", "cli", "--", ...arguments_], {
     shell: true,
-    cwd: "../",
+    cwd: packageRoot,
     env: { NEXUS_IDL_DEBUG: "1", ...process.env },
     stdio: options?.stdio ?? "inherit",
   });
