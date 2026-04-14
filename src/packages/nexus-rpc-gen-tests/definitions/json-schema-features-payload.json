@@ -1,0 +1,55 @@
+{
+  "id": "RPC-001",
+  "count": 5,
+  "price": 29.5,
+  "active": true,
+  "status": "active",
+  "tags": ["urgent", "reviewed"],
+  "metadata": {
+    "source": "api",
+    "region": "us-east-1"
+  },
+  "pet": {
+    "kind": "dog",
+    "breed": "herding"
+  },
+  "contact": {
+    "method": "email",
+    "email": "alice@example.com"
+  },
+  "address": {
+    "line1": "123 Main St",
+    "city": "Springfield",
+    "countryCode": "US",
+    "postalCode": "62704",
+    "residential": true,
+    "instructions": "Leave at front door"
+  },
+  "history": [
+    {
+      "at": "2026-01-15T09:30:00Z",
+      "action": "created",
+      "actor": "alice"
+    },
+    {
+      "at": "2026-03-22T14:15:00Z",
+      "action": "updated",
+      "actor": 42
+    }
+  ],
+  "variant": "beta",
+  "nullableNote": null,
+  "timestamp": "2026-04-09T12:00:00Z",
+  "fixedKind": "payload",
+  "scoreMatrix": [
+    [1.0, 2.5],
+    [3.0, 4.5],
+    [5.0, 6.5]
+  ],
+  "manager": {
+    "name": "Bob Smith",
+    "email": "bob@example.com",
+    "department": "Engineering",
+    "reports": 8
+  }
+}

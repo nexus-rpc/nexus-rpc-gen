@@ -11,6 +11,7 @@ import {
   type RendererOptions,
   type Sourcelike,
 } from "quicktype-core";
+import type { StringTypeMapping } from "quicktype-core/dist/Type/TypeBuilderUtils.js";
 import { RenderAdapter, type RenderAccessible } from "./render-adapter.js";
 import type { PreparedService, PreparedTypeReference } from "./generator.js";
 import { splitDescription } from "./utility.js";
@@ -23,6 +24,12 @@ export class TypeScriptLanguageWithNexus extends TypeScriptTargetLanguage {
   protected override get defaultIndentation(): string {
     // We want two-space indent to be default for TypeScript
     return "  ";
+  }
+
+  override get stringTypeMapping(): StringTypeMapping {
+    // Map date-time to plain string so generated models use string
+    // instead of the JS Date object for date-time formatted fields.
+    return new Map([["date-time", "string"]]);
   }
 
   protected override makeRenderer<Lang extends LanguageName = "typescript">(
