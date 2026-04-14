@@ -57,6 +57,18 @@ test("Go temporal nexus payload codec support is optional", async () => {
   );
   assert.ok(
     withFlag.stdout.includes(
+      'visited["payloads"] = visitedValue',
+    ),
+    "input payload arrays should be visited through the payloads field",
+  );
+  assert.ok(
+    withFlag.stdout.includes(
+      'return visitedMap["payloads"], nil',
+    ),
+    "payload array helpers should return the payload array for field rewrites",
+  );
+  assert.ok(
+    withFlag.stdout.includes(
       "func (r *temporalNexusPayloadVisitor) visitSearchAttributesJSON(",
     ),
     "search attributes should have a structural visitor helper",

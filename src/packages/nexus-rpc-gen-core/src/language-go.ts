@@ -467,7 +467,24 @@ class GoRenderAdapter extends RenderAdapter<GoRenderAccessible> {
         this.render.indent(() => this.render.emitLine("return nil, err"));
         this.render.emitLine("}");
         this.render.emitLine("payloads.Payloads = visitedPayloads");
-        this.render.emitLine("return temporalNexusMessageToJSONValue(payloads)");
+        this.render.emitLine("visitedValue, err := temporalNexusMessageToJSONValue(payloads)");
+        this.render.emitLine("if err != nil {");
+        this.render.indent(() => this.render.emitLine("return nil, err"));
+        this.render.emitLine("}");
+        this.render.emitLine("if visitedArray, ok := visitedValue.([]any); ok {");
+        this.render.indent(() => this.render.emitLine("return visitedArray, nil"));
+        this.render.emitLine("}");
+        this.render.emitLine("visitedMap, ok := visitedValue.(map[string]any)");
+        this.render.emitLine("if !ok {");
+        this.render.indent(() =>
+          this.render.emitLine(
+            'return nil, errors.New("temporal nexus payload visitor expected array JSON")',
+          ),
+        );
+        this.render.emitLine("}");
+        this.render.emitLine(
+          'return visitedMap["payloads"], nil',
+        );
       },
     );
     this.render.ensureBlankLine();
@@ -975,9 +992,6 @@ class GoRenderAdapter extends RenderAdapter<GoRenderAccessible> {
   getTemporalDirectRewriteKind(
     typeName: string,
   ): TemporalTerminalRewriteKind | undefined {
-    if (typeName == "Input") {
-      return "payloads";
-    }
     return undefined;
   }
 
