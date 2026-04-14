@@ -19,18 +19,8 @@ from services.json_schema_features_service import (
 )
 
 
-def test_json_schema_features_round_trip() -> None:
-    fixture_path = (
-        Path(__file__).parent
-        / ".."
-        / ".."
-        / "definitions"
-        / "json-schema-features-payload.json"
-    )
-    fixture_json = fixture_path.read_text()
-
-    # Construct the payload programmatically using generated types.
-    payload = JSONSchemaFeaturesPayload(
+def _build_payload() -> JSONSchemaFeaturesPayload:
+    return JSONSchemaFeaturesPayload(
         id="RPC-001",
         count=5,
         price=29.5,
@@ -73,10 +63,31 @@ def test_json_schema_features_round_trip() -> None:
         ),
     )
 
+
+def _read_fixture() -> str:
+    fixture_path = (
+        Path(__file__).parent
+        / ".."
+        / ".."
+        / "definitions"
+        / "json-schema-features-payload.json"
+    )
+    return fixture_path.read_text()
+
+
+def test_json_schema_features_round_trip() -> None:
+    payload = _build_payload()
+
     # Serialize, parse both sides, normalize, compare.
     actual = normalize(json.loads(payload.model_dump_json(by_alias=True)))
-    expected = normalize(json.loads(fixture_json))
+    expected = normalize(json.loads(_read_fixture()))
     assert actual == expected
+
+
+def test_json_schema_features_deserialize() -> None:
+    # Deserialize fixture JSON and compare against the same payload.
+    deserialized = JSONSchemaFeaturesPayload.model_validate_json(_read_fixture())
+    assert deserialized == _build_payload()
 
 
 def normalize(obj: Any) -> Any:

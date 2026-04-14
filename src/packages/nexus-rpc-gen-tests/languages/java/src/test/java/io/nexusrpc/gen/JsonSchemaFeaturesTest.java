@@ -27,14 +27,7 @@ public class JsonSchemaFeaturesTest {
   private static final DateTimeFormatter CANONICAL =
       DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss'Z'");
 
-  @Test
-  public void roundTrip() throws Exception {
-    // Read fixture
-    String fixtureJson =
-        new String(
-            Files.readAllBytes(Paths.get("../../definitions/json-schema-features-payload.json")));
-
-    // Construct the payload programmatically using generated types.
+  private static JSONSchemaFeaturesPayload buildPayload() {
     JSONSchemaFeaturesPayload payload = new JSONSchemaFeaturesPayload();
     payload.setID("RPC-001");
     payload.setCount(5);
@@ -96,14 +89,34 @@ public class JsonSchemaFeaturesTest {
     event2.setActor(actor2);
 
     payload.setHistory(new HistoryEvent[] {event1, event2});
+    return payload;
+  }
+
+  private static String readFixture() throws Exception {
+    return new String(
+        Files.readAllBytes(Paths.get("../../definitions/json-schema-features-payload.json")));
+  }
+
+  @Test
+  public void roundTrip() throws Exception {
+    JSONSchemaFeaturesPayload payload = buildPayload();
 
     // Serialize, parse both sides, normalize, compare.
     String serialized = mapper.writeValueAsString(payload);
     JsonNode actual = mapper.readTree(serialized);
-    JsonNode expected = mapper.readTree(fixtureJson);
+    JsonNode expected = mapper.readTree(readFixture());
     normalize(actual);
     normalize(expected);
     assertTrue(jsonEqual(expected, actual), "Expected: " + expected + "\nActual: " + actual);
+  }
+
+  @Test
+  public void deserialize() throws Exception {
+    // Deserialize fixture and compare against the same payload.
+    JSONSchemaFeaturesPayload deserialized =
+        mapper.readValue(readFixture(), JSONSchemaFeaturesPayload.class);
+    JSONSchemaFeaturesPayload expected = buildPayload();
+    assertEquals(mapper.valueToTree(expected), mapper.valueToTree(deserialized));
   }
 
   /** Strip null values */

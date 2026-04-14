@@ -11,11 +11,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestJsonSchemaFeatures(t *testing.T) {
+func buildPayload() services.JSONSchemaFeaturesPayload {
 	breed := services.Herding
-
-	// Construct the payload programmatically using generated types.
-	payload := services.JSONSchemaFeaturesPayload{
+	return services.JSONSchemaFeaturesPayload{
 		ID:     "RPC-001",
 		Count:  5,
 		Price:  29.5,
@@ -69,6 +67,10 @@ func TestJsonSchemaFeatures(t *testing.T) {
 			Reports:    8,
 		},
 	}
+}
+
+func TestJsonSchemaFeatures(t *testing.T) {
+	payload := buildPayload()
 
 	// Serialize, parse both sides, normalize, compare.
 	data, err := json.Marshal(payload)
@@ -109,4 +111,53 @@ func TestJsonSchemaFeatures(t *testing.T) {
 	// Go represents nullableNote as a plain string; the zero value is the
 	// closest equivalent to the fixture's null.
 	assert.Equal(t, "", payload.NullableNote)
+}
+
+func TestJsonSchemaFeaturesDeserialize(t *testing.T) {
+	fixture, err := os.ReadFile("../../definitions/json-schema-features-payload.json")
+	require.NoError(t, err)
+
+	// Parse raw fixture for verifying union-typed fields separately.
+	var rawMap map[string]any
+	require.NoError(t, json.Unmarshal(fixture, &rawMap))
+
+	// Strip union-typed fields (Actor) that cannot be unmarshaled into Go
+	// structs because Actor has no UnmarshalJSON and no json tags.
+	var modifiable map[string]json.RawMessage
+	require.NoError(t, json.Unmarshal(fixture, &modifiable))
+	delete(modifiable, "variant")
+
+	var historyRaw []json.RawMessage
+	require.NoError(t, json.Unmarshal(modifiable["history"], &historyRaw))
+	for i, eventRaw := range historyRaw {
+		var eventMap map[string]json.RawMessage
+		require.NoError(t, json.Unmarshal(eventRaw, &eventMap))
+		delete(eventMap, "actor")
+		historyRaw[i], err = json.Marshal(eventMap)
+		require.NoError(t, err)
+	}
+	modifiable["history"], err = json.Marshal(historyRaw)
+	require.NoError(t, err)
+
+	modifiedJSON, err := json.Marshal(modifiable)
+	require.NoError(t, err)
+
+	var deserialized services.JSONSchemaFeaturesPayload
+	require.NoError(t, json.Unmarshal(modifiedJSON, &deserialized))
+
+	// Compare against the same payload used by the serialization test,
+	// with Actor fields cleared since they were stripped from the JSON.
+	expected := buildPayload()
+	expected.Variant = nil
+	for i := range expected.History {
+		expected.History[i].Actor = nil
+	}
+	assert.Equal(t, expected, deserialized)
+
+	// Verify union-typed fields from the raw JSON (cannot unmarshal into Actor).
+	assert.Equal(t, "beta", rawMap["variant"])
+	assert.Nil(t, rawMap["nullableNote"])
+	history := rawMap["history"].([]any)
+	assert.Equal(t, "alice", history[0].(map[string]any)["actor"])
+	assert.Equal(t, float64(42), history[1].(map[string]any)["actor"])
 }

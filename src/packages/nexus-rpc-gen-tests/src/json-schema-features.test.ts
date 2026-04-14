@@ -111,7 +111,7 @@ test("JSON Schema Features - C#", async () => {
       [
         "test",
         "--filter",
-        "JsonSchemaFeaturesRoundTrip",
+        "FullyQualifiedName~JsonSchemaFeaturesTests",
         "--logger",
         "console;verbosity=detailed",
       ],

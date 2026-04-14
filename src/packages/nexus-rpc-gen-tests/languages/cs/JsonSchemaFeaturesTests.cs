@@ -5,14 +5,9 @@ using Xunit;
 
 public class JsonSchemaFeaturesTests
 {
-    [Fact]
-    public void JsonSchemaFeaturesRoundTrip()
+    private static JsonSchemaFeaturesPayload BuildPayload()
     {
-        // Read fixture
-        var fixtureJson = File.ReadAllText("../../../../../definitions/json-schema-features-payload.json");
-
-        // Construct the payload programmatically using generated types.
-        var payload = new JsonSchemaFeaturesPayload
+        return new JsonSchemaFeaturesPayload
         {
             Id = "RPC-001",
             Count = 5,
@@ -72,15 +67,35 @@ public class JsonSchemaFeaturesTests
                 },
             },
         };
+    }
+
+    private static string ReadFixture()
+    {
+        return File.ReadAllText("../../../../../definitions/json-schema-features-payload.json");
+    }
+
+    [Fact]
+    public void JsonSchemaFeaturesRoundTrip()
+    {
+        var payload = BuildPayload();
 
         // Serialize, parse both sides, normalize, compare.
         var serialized = JsonSerializer.Serialize(payload, Converter.Settings);
         var actual = JsonNode.Parse(serialized)!;
-        var expected = JsonNode.Parse(fixtureJson)!;
+        var expected = JsonNode.Parse(ReadFixture())!;
         Normalize(actual);
         Normalize(expected);
         Assert.True(JsonEqual(actual, expected),
             $"Expected: {expected.ToJsonString()}\nActual: {actual.ToJsonString()}");
+    }
+
+    [Fact]
+    public void JsonSchemaFeaturesDeserialize()
+    {
+        // Deserialize fixture and compare against the same payload.
+        var deserialized = JsonSerializer.Deserialize<JsonSchemaFeaturesPayload>(ReadFixture(), Converter.Settings)!;
+        var expected = BuildPayload();
+        Assert.Equivalent(expected, deserialized, strict: true);
     }
 
     /// <summary>normalize date strings to YYYY-MM-DDTHH:mm:ssZ.</summary>
