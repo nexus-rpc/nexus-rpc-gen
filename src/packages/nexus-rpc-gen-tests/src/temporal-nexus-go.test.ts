@@ -34,8 +34,12 @@ test("Go temporal nexus payload codec support is optional", async () => {
     "registry should be emitted when the generic flag is enabled",
   );
   assert.ok(
+    withFlag.stdout.includes("InputType func() any"),
+    "registry entries should carry the input allocator alongside the visitor",
+  );
+  assert.ok(
     withFlag.stdout.includes("func GetTemporalNexusPayloadVisitor("),
-    "getter should be emitted when payload codec support is enabled",
+    "payload visitor getter should be emitted when payload codec support is enabled",
   );
   assert.ok(
     withFlag.stdout.includes(
@@ -43,38 +47,38 @@ test("Go temporal nexus payload codec support is optional", async () => {
     ),
     "registry should be keyed by service and operation",
   );
-    assert.ok(
-      withFlag.stdout.includes(
-      "func (r *temporalNexusPayloadVisitor) visitUserMetadataJSON(",
+  assert.ok(
+    withFlag.stdout.includes(
+      "typedValue, ok := value.(*WorkflowServiceSignalWithStartWorkflowExecutionInput)",
+    ),
+    "operation visitor should receive the typed generated input",
+  );
+  assert.ok(
+    withFlag.stdout.includes(
+      "func (r *temporalNexusPayloadVisitor) visitUserMetadata(",
       ),
     "user metadata should have a structural visitor helper",
   );
   assert.ok(
     withFlag.stdout.includes(
-      'visitedValue, err := r.visitPayloadJSON(fieldValue)',
+      'visitedValue, err := r.visitPayloadJSON(visited.Details)',
     ),
     "payload fields should be visited structurally",
   );
   assert.ok(
     withFlag.stdout.includes(
-      'visited["payloads"] = visitedValue',
+      "visited.Payloads = visitedValue",
     ),
     "input payload arrays should be visited through the payloads field",
   );
   assert.ok(
     withFlag.stdout.includes(
-      'return visitedMap["payloads"], nil',
-    ),
-    "payload array helpers should return the payload array for field rewrites",
-  );
-  assert.ok(
-    withFlag.stdout.includes(
-      "func (r *temporalNexusPayloadVisitor) visitSearchAttributesJSON(",
+      "func (r *temporalNexusPayloadVisitor) visitSearchAttributes(",
     ),
     "search attributes should have a structural visitor helper",
   );
   assert.ok(
-    withFlag.stdout.includes("if !r.visitSearchAttributes {"),
+    withFlag.stdout.includes("if !r.shouldVisitSearchAttributes {"),
     "search attribute rewriting should be opt-in",
   );
   assert.ok(
