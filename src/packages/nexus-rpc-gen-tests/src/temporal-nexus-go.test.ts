@@ -43,23 +43,23 @@ test("Go temporal nexus payload codec support is optional", async () => {
     ),
     "registry should be keyed by service and operation",
   );
-  assert.ok(
-    withFlag.stdout.includes(
-      "func (r *temporalNexusPayloadVisitor) rewriteUserMetadataJSON(",
-    ),
-    "user metadata should have a structural rewriter helper",
+    assert.ok(
+      withFlag.stdout.includes(
+      "func (r *temporalNexusPayloadVisitor) visitUserMetadataJSON(",
+      ),
+    "user metadata should have a structural visitor helper",
   );
   assert.ok(
     withFlag.stdout.includes(
-      'rewrittenValue, err := r.rewritePayloadJSON(fieldValue)',
+      'visitedValue, err := r.visitPayloadJSON(fieldValue)',
     ),
-    "payload fields should be rewritten structurally",
+    "payload fields should be visited structurally",
   );
   assert.ok(
     withFlag.stdout.includes(
-      "func (r *temporalNexusPayloadVisitor) rewriteSearchAttributesJSON(",
+      "func (r *temporalNexusPayloadVisitor) visitSearchAttributesJSON(",
     ),
-    "search attributes should have a structural rewriter helper",
+    "search attributes should have a structural visitor helper",
   );
   assert.ok(
     withFlag.stdout.includes("if !r.visitSearchAttributes {"),
