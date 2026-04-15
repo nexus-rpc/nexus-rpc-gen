@@ -140,7 +140,9 @@ export class Generator {
       });
       results.forEach(
         (contents, fileName) =>
-          (returnValue[fileName] = contents.lines.join("\n")),
+          (returnValue[fileName] = this.postProcessOutput(
+            contents.lines.join("\n"),
+          )),
       );
     } catch (error: unknown) {
       if (
@@ -158,6 +160,38 @@ export class Generator {
       throw error;
     }
     return returnValue;
+  }
+
+  private postProcessOutput(contents: string): string {
+    if (!this.options.lang.names.includes("go")) {
+      return contents;
+    }
+    return contents.replace(
+      `// Serialized arguments to the workflow. These are passed as arguments to the workflow
+// function.
+//
+// See \`Payload\`
+//
+// Serialized value(s) to provide with the signal
+type Input struct {
+\tPayloads []interface{} \`json:"payloads,omitempty"\`
+}`,
+      `// Payload is a single serialized Temporal payload in JSON-schema form.
+type Payload = any
+
+// Payloads are serialized values in JSON-schema form.
+type Payloads struct {
+\tPayloads []Payload \`json:"payloads,omitempty"\`
+}
+
+// Serialized arguments to the workflow. These are passed as arguments to the workflow
+// function.
+//
+// See \`Payload\`
+//
+// Serialized value(s) to provide with the signal
+type Input = Payloads`,
+    );
   }
 
   private prepareSchemas(): PreparedSchemaSources {

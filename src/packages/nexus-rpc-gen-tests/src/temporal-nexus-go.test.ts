@@ -85,4 +85,20 @@ test("Go temporal nexus payload codec support is optional", async () => {
     withFlag.stdout.includes("type temporalNexusPayloadVisitor struct {"),
     "generated helpers should be grouped in an object",
   );
+  assert.ok(
+    withFlag.stdout.includes("type Payload = any"),
+    "named payload schema should be preserved in the generated Go model",
+  );
+  assert.ok(
+    withFlag.stdout.includes("type Payloads struct {"),
+    "named payloads schema should be preserved in the generated Go model",
+  );
+  assert.ok(
+    withFlag.stdout.includes("Payloads []Payload `json:\"payloads,omitempty\"`"),
+    "payload arrays should use the named payload type",
+  );
+  assert.ok(
+    withFlag.stdout.includes("type Input = Payloads"),
+    "the schema-specific input wrapper should alias the named payloads type",
+  );
 });

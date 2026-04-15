@@ -2,6 +2,7 @@ import {
   ArrayType,
   ClassType,
   ConvenienceRenderer,
+  EnumType,
   MapType,
   Name,
   Namer,
@@ -57,6 +58,9 @@ export class PythonLanguageWithNexus extends PythonTargetLanguage {
       emitClass(_original, t) {
         adapter.emitClass(t);
       },
+      emitEnum(_original, t) {
+        adapter.emitEnum(t);
+      },
       emitImports(original) {
         original();
         adapter.emitAdditionalImports();
@@ -71,6 +75,7 @@ type PythonRenderAccessible = PythonRenderer &
     declareType<T extends Type>(t: T, emitter: () => void): void;
     emitBlock(line: Sourcelike, f: () => void): void;
     emitClass(t: ClassType): void;
+    emitEnum(t: EnumType): void;
     emitClosingCode(): void;
     emitImports(): void;
     emitSourceStructure(givenOutputFilename: string): void;
@@ -208,6 +213,33 @@ class PythonRenderAdapter extends RenderAdapter<PythonRenderAccessible> {
       );
       this.render.emitLine("import temporalio.api.common.v1");
     }
+  }
+
+  emitEnum(t: EnumType) {
+    this.render.emitBlock(
+      [
+        "class ",
+        this.render.nameForNamedType(t),
+        "(",
+        "str, ",
+        this.render.withImport("enum", "Enum"),
+        "):",
+      ],
+      () => {
+        this.render.emitDescription(this.render.descriptionForType(t));
+        (this.render as any).forEachEnumCase(
+          t,
+          "none",
+          (name: Name, jsonName: string) => {
+            this.render.emitLine([
+              name,
+              " = ",
+              this.render.string(jsonName),
+            ]);
+          },
+        );
+      },
+    );
   }
 
   emitTemporalNexusPayloadSupport() {
