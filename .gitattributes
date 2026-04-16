@@ -1,0 +1,4 @@
+# Normalize line endings for Go golden test files so Windows checkouts
+# don't convert them to CRLF and cause comparison failures.
+tools/protoc-gen-nexusrpc/**/*.yaml text eol=lf
+tools/protoc-gen-nexusrpc/**/*.proto text eol=lf
