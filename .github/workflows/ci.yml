@@ -80,3 +80,22 @@ jobs:
         working-directory: src
         # We have to lint:fix first to update generated TS code
         run: pnpm run lint:fix && git diff --exit-code
+
+  test-protoc-plugin:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: tools/protoc-gen-nexusrpc/go.mod
+
+      - name: Test
+        working-directory: tools/protoc-gen-nexusrpc
+        run: go test ./...
