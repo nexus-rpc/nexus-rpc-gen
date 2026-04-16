@@ -47,6 +47,13 @@ services:
         output:
           $ref: '#/types/ComplexOutput'
 
+      requiredCollections:
+        description: Tests required collections marshal correctly
+        input:
+          $ref: '#/types/RequiredCollectionsInput'
+        output:
+          $ref: '#/types/RequiredCollectionsOutput'
+
   # Funny names with clashes
   'Strange{Item}':
     operations:
@@ -146,6 +153,34 @@ types:
     properties:
       someField:
         type: integer
+  RequiredCollectionsInput:
+    title: RequiredCollectionsInput
+    type: object
+    additionalProperties: false
+    required: [tags, metadata]
+    properties:
+      tags:
+        type: array
+        items:
+          type: string
+      metadata:
+        type: object
+        additionalProperties:
+          type: string
+      optionalList:
+        type: array
+        items:
+          type: integer
+  RequiredCollectionsOutput:
+    title: RequiredCollectionsOutput
+    type: object
+    additionalProperties: false
+    required: [items]
+    properties:
+      items:
+        type: array
+        items:
+          type: string
   DateInput:
     type: object
     properties:
