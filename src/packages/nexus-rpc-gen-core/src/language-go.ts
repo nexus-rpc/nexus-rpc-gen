@@ -74,6 +74,10 @@ export class GoLanguageWithNexus extends GoTargetLanguage {
         }
         original(t, name);
       },
+      emitClass(original, c, className) {
+        original(c, className);
+        adapter.emitMarshalJSON(c, className);
+      },
       nullableGoType(original, t, withIssues) {
         // If the kind is a primitive and primitive pointers disabled, just return goType
         if (
@@ -117,6 +121,7 @@ type GoRenderAccessible = Omit<GoRenderer, "emitTypesAndSupport"> &
     emitBlock(line: Sourcelike, f: () => void): void;
     get haveNamedUnions(): boolean;
     collectAllImports(): Set<string>;
+    emitClass(c: ClassType, className: Name): void;
     emitSourceStructure(): void;
     emitTopLevel(t: Type, name: Name): void;
     goType(t: Type, withIssues?: boolean): Sourcelike;
@@ -181,6 +186,7 @@ interface TemporalOperationPayloadVisitor {
 
 class GoRenderAdapter extends RenderAdapter<GoRenderAccessible> {
   private _imports?: Record<string, string>;
+  private _needsMarshalJSON?: boolean;
   private temporalClassRewritePlans:
     | Map<string, TemporalClassRewritePlan>
     | undefined;
@@ -221,6 +227,32 @@ class GoRenderAdapter extends RenderAdapter<GoRenderAccessible> {
     return [`"${stringEscape(value)}"`];
   }
 
+  get needsMarshalJSON(): boolean {
+    if (this._needsMarshalJSON === undefined) {
+      this._needsMarshalJSON = false;
+      this.render.forEachNamedType(
+        "none",
+        (c) => {
+          this.render.forEachClassProperty(
+            c,
+            "none",
+            (_name, _jsonName, cp) => {
+              if (
+                !cp.isOptional &&
+                (cp.type.kind === "array" || cp.type.kind === "map")
+              ) {
+                this._needsMarshalJSON = true;
+              }
+            },
+          );
+        },
+        () => {},
+        () => {},
+      );
+    }
+    return this._needsMarshalJSON;
+  }
+
   // Key is qualified import, value is alias
   get imports(): Record<string, string> {
     if (this._imports === undefined) {
@@ -253,6 +285,9 @@ class GoRenderAdapter extends RenderAdapter<GoRenderAccessible> {
         origImports.add("go.temporal.io/api/common/v1");
         origImports.add("go.temporal.io/api/temporalproto");
         origImports.add("google.golang.org/protobuf/proto");
+      }
+      if (this.needsMarshalJSON) {
+        origImports.add("encoding/json");
       }
       for (const mport of origImports) {
         this._imports[mport] = aliasForImport(mport);
@@ -328,6 +363,45 @@ class GoRenderAdapter extends RenderAdapter<GoRenderAccessible> {
     )) {
       this.emitService(serviceName, serviceSchema);
     }
+  }
+
+  emitMarshalJSON(c: ClassType, className: Name) {
+    const nilCheckFields: { name: Name; goType: Sourcelike }[] = [];
+    this.render.forEachClassProperty(c, "none", (name, _jsonName, cp) => {
+      if (
+        !cp.isOptional &&
+        (cp.type.kind === "array" || cp.type.kind === "map")
+      ) {
+        nilCheckFields.push({
+          name,
+          goType: this.render.goType(cp.type, false),
+        });
+      }
+    });
+
+    if (nilCheckFields.length === 0) {
+      return;
+    }
+
+    this.render.ensureBlankLine();
+    this.render.emitLine(
+      "func (o ",
+      className,
+      ") MarshalJSON() ([]byte, error) {",
+    );
+    this.render.indent(() => {
+      this.render.emitLine("type Alias ", className);
+      this.render.emitLine("a := Alias(o)");
+      for (const field of nilCheckFields) {
+        this.render.emitLine("if a.", field.name, " == nil {");
+        this.render.indent(() => {
+          this.render.emitLine("a.", field.name, " = ", field.goType, "{}");
+        });
+        this.render.emitLine("}");
+      }
+      this.render.emitLine("return json.Marshal(a)");
+    });
+    this.render.emitLine("}");
   }
 
   emitTemporalNexusPayloadSupport() {

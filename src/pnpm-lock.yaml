@@ -46,8 +46,8 @@ importers:
         specifier: ^8.46.0
         version: 8.53.1(eslint@9.39.2)(typescript@5.9.3)
       yaml:
-        specifier: ^2.8.1
-        version: 2.8.2
+        specifier: ^2.8.3
+        version: 2.8.3
 
   packages/nexus-rpc-gen:
     dependencies:
@@ -101,8 +101,12 @@ importers:
         specifier: ^1.0.0
         version: 1.0.0
       yaml:
-        specifier: ^2.8.1
-        version: 2.8.2
+        specifier: ^2.8.3
+        version: 2.8.3
+    devDependencies:
+      '@types/node':
+        specifier: ^25.5.2
+        version: 25.5.2
 
   packages/nexus-rpc-gen-tests:
     dependencies:
@@ -407,6 +411,9 @@ packages:
 
   '@types/node@24.10.9':
     resolution: {integrity: sha512-ne4A0IpG3+2ETuREInjPNhUGis1SFjv1d5asp8MzEAGtOZeTeHVDOYqOgqfhvseqg/iXty2hjBf1zAOb7RNiNw==}
+
+  '@types/node@25.5.2':
+    resolution: {integrity: sha512-tO4ZIRKNC+MDWV4qKVZe3Ql/woTnmHDr5JD8UI5hn2pwBrHEwOEMZK7WlNb5RKB6EoJ02gwmQS9OrjuFnZYdpg==}
 
   '@types/wordwrap@1.0.3':
     resolution: {integrity: sha512-jx39cOYWJxZxVOZeNHvLVoDLRUFcYtIJaurC6C0qzCovIB3GPDbMDbYvoWi9D1B2PtIE16rElQOFR4Y+8QbUgw==}
@@ -1245,6 +1252,9 @@ packages:
   undici-types@7.16.0:
     resolution: {integrity: sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw==}
 
+  undici-types@7.18.2:
+    resolution: {integrity: sha512-AsuCzffGHJybSaRrmr5eHr81mwJU3kjw6M+uprWvCXiNeN9SOGwQ3Jn8jb8m3Z6izVgknn1R0FTCEAP2QrLY/w==}
+
   unicode-properties@1.4.1:
     resolution: {integrity: sha512-CLjCCLQ6UuMxWnbIylkisbRj31qxHPAurvena/0iwSVbQ2G1VY5/HjV0IRabOEbDHlzZlRdCrD4NhB0JtU40Pg==}
 
@@ -1304,6 +1314,11 @@ packages:
 
   yaml@2.8.2:
     resolution: {integrity: sha512-mplynKqc1C2hTVYxd0PU2xQAc22TI1vShAYGksCCfxbn/dFwnHTNi1bvYsBTkhdUNtGIf5xNOg938rrSSYvS9A==}
+    engines: {node: '>= 14.6'}
+    hasBin: true
+
+  yaml@2.8.3:
+    resolution: {integrity: sha512-AvbaCLOO2Otw/lW5bmh9d/WEdcDFdQp2Z2ZUH3pX9U2ihyUY0nvLv7J6TrWowklRGPYbB/IuIMfYgxaCPg5Bpg==}
     engines: {node: '>= 14.6'}
     hasBin: true
 
@@ -1531,6 +1546,10 @@ snapshots:
   '@types/node@24.10.9':
     dependencies:
       undici-types: 7.16.0
+
+  '@types/node@25.5.2':
+    dependencies:
+      undici-types: 7.18.2
 
   '@types/wordwrap@1.0.3': {}
 
@@ -2383,6 +2402,8 @@ snapshots:
 
   undici-types@7.16.0: {}
 
+  undici-types@7.18.2: {}
+
   unicode-properties@1.4.1:
     dependencies:
       base64-js: 1.5.1
@@ -2437,6 +2458,8 @@ snapshots:
   y18n@5.0.8: {}
 
   yaml@2.8.2: {}
+
+  yaml@2.8.3: {}
 
   yargs-parser@21.1.1: {}
 

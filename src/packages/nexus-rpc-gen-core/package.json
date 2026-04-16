@@ -22,7 +22,7 @@
     "ajv-formats": "^3.0.1",
     "quicktype-core": "^23.2.6",
     "wordwrap": "^1.0.0",
-    "yaml": "^2.8.1"
+    "yaml": "^2.8.3"
   },
   "files": [
     "README.md",
@@ -32,5 +32,8 @@
   ],
   "publishConfig": {
     "access": "public"
+  },
+  "devDependencies": {
+    "@types/node": "^25.5.2"
   }
 }

@@ -3,7 +3,6 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import Optional
 from dataclasses import dataclass
 from nexusrpc import Operation, service
