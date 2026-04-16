@@ -138,8 +138,8 @@ export interface PurpleStrangeItem {
 }
 
 export interface DateInput {
-  date?: Date;
-  dateTime?: Date;
+  date?: string;
+  dateTime?: string;
   time?: string;
   [property: string]: any;
 }

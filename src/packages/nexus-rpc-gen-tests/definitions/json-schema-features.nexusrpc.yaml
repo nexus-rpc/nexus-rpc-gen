@@ -1,0 +1,193 @@
+# yaml-language-server: $schema=../../../../schemas/nexus-rpc-gen.json
+nexusrpc: 1.0.0
+services:
+  JsonSchemaFeaturesService:
+    description: Exercises a broad set of JSON Schema features.
+    operations:
+      roundTrip:
+        input:
+          $ref: "#/types/JsonSchemaFeaturesPayload"
+        output:
+          $ref: "#/types/JsonSchemaFeaturesPayload"
+types:
+  JsonSchemaFeaturesPayload:
+    title: JsonSchemaFeaturesPayload
+    description: A payload intended to exercise many JSON Schema features.
+    type: object
+    additionalProperties: false
+    required:
+      - id
+      - count
+      - price
+      - active
+      - status
+      - tags
+      - metadata
+      - pet
+      - contact
+      - address
+      - history
+      - variant
+      - nullableNote
+      - timestamp
+      - fixedKind
+      - scoreMatrix
+      - manager
+    properties:
+      id:
+        type: string
+        minLength: 3
+        maxLength: 12
+        pattern: "^[A-Z0-9-]+$"
+      count:
+        type: integer
+        minimum: 0
+        maximum: 10
+      price:
+        type: number
+        minimum: 0
+        exclusiveMaximum: 1000
+        multipleOf: 0.5
+      active:
+        type: boolean
+      status:
+        enum: [pending, active, disabled]
+      tags:
+        type: array
+        minItems: 2
+        uniqueItems: true
+        items:
+          type: string
+          # minLength: 1
+      metadata:
+        type: object
+        additionalProperties:
+          type: string
+      pet:
+        oneOf:
+          - $ref: "#/types/Cat"
+          - $ref: "#/types/Dog"
+      contact:
+        $ref: "#/types/PrimaryContact"
+      address:
+        $ref: "#/types/ShippingAddress"
+      history:
+        type: array
+        items:
+          $ref: "#/types/HistoryEvent"
+      variant:
+        anyOf:
+          - type: string
+          - type: integer
+      nullableNote:
+        oneOf:
+          - type: string
+          - type: "null"
+      timestamp:
+        type: string
+        format: date-time
+      fixedKind:
+        const: payload
+      scoreMatrix:
+        type: array
+        items:
+          type: array
+          items:
+            type: number
+      manager:
+        $ref: "#/types/Manager"
+
+  BaseEmployee:
+    type: object
+    required: [name, email]
+    properties:
+      name:
+        type: string
+      email:
+        type: string
+        format: email
+
+  Manager:
+    allOf:
+      - $ref: "#/types/BaseEmployee"
+      - type: object
+        required: [department]
+        properties:
+          department:
+            type: string
+          reports:
+            type: integer
+            minimum: 0
+
+  Cat:
+    type: object
+    additionalProperties: false
+    required: [kind, hunts]
+    properties:
+      kind:
+        const: cat
+      hunts:
+        type: boolean
+
+  Dog:
+    type: object
+    additionalProperties: false
+    required: [kind, breed]
+    properties:
+      kind:
+        const: dog
+      breed:
+        enum: [herding, hound, working]
+
+  PrimaryContact:
+    type: object
+    additionalProperties: false
+    required: [method, email]
+    properties:
+      method:
+        const: email
+      email:
+        type: string
+        format: email
+
+  BaseAddress:
+    type: object
+    required: [line1, city, countryCode]
+    properties:
+      line1:
+        type: string
+      city:
+        type: string
+      countryCode:
+        type: string
+        minLength: 2
+        maxLength: 2
+      postalCode:
+        type: string
+        pattern: "^[0-9]{5}$"
+
+  ShippingAddress:
+    allOf:
+      - $ref: "#/types/BaseAddress"
+      - type: object
+        required: [residential]
+        properties:
+          residential:
+            type: boolean
+          instructions:
+            type: string
+
+  HistoryEvent:
+    type: object
+    additionalProperties: false
+    required: [at, action, actor]
+    properties:
+      at:
+        type: string
+        format: date-time
+      action:
+        enum: [created, updated]
+      actor:
+        anyOf:
+          - type: string
+          - type: integer
