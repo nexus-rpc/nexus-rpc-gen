@@ -18,6 +18,12 @@ test("JSON Schema Features - TypeScript", async () => {
     ])
   ).assertSuccess();
   (
+    await spawnAsync("npm", ["install"], {
+      cwd: "languages/ts",
+      stdio: "inherit",
+    })
+  ).assertSuccess();
+  (
     await spawnAsync("npx", ["tsx", "src/json-schema-features-tests.ts"], {
       cwd: "languages/ts",
       stdio: "inherit",

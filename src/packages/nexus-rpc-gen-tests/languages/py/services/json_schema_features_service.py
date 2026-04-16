@@ -102,6 +102,4 @@ class JSONSchemaFeaturesPayload(BaseModel):
 class JSONSchemaFeaturesService:
     """Exercises a broad set of JSON Schema features."""
 
-    round_trip: Operation[JSONSchemaFeaturesPayload, JSONSchemaFeaturesPayload] = (
-        Operation(name="roundTrip")
-    )
+    round_trip: Operation[JSONSchemaFeaturesPayload, JSONSchemaFeaturesPayload] = Operation(name="roundTrip")
