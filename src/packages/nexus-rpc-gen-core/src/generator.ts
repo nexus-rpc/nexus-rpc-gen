@@ -86,9 +86,7 @@ export class Generator {
     for (const schema of sources.sources) {
       // Add titles to types that don't have one so quicktype names them
       // correctly (it falls back to random names without a title field).
-      schema.sharedJsonSchema.types = addTitles(
-        schema.sharedJsonSchema.types,
-      );
+      schema.sharedJsonSchema.types = addTitles(schema.sharedJsonSchema.types);
       const jsonSchema = {
         // Set title to end with __ALL_TYPES__ so quicktype uses this name for the
         // top-level entry even with multiple sources (otherwise it falls back
@@ -300,9 +298,9 @@ function mergeSources(
  * Without a title, quicktype falls back to heuristics that produce
  * unpredictable names (derived from URI fragments or random city+animal pairs).
  */
-function addTitles(
-  types: { [key: string]: { [key: string]: any } },
-): { [key: string]: { [key: string]: any } } {
+function addTitles(types: { [key: string]: { [key: string]: any } }): {
+  [key: string]: { [key: string]: any };
+} {
   const result: { [key: string]: { [key: string]: any } } = {};
   for (const [name, schema] of Object.entries(types)) {
     if (!schema.title) {

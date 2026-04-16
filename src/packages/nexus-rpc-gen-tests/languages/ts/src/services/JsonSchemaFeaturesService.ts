@@ -5,45 +5,51 @@ import * as nexus from "nexus-rpc";
 /**
  * Exercises a broad set of JSON Schema features.
  */
-export const jsonSchemaFeaturesService = nexus.service("JsonSchemaFeaturesService", {
-  roundTrip: nexus.operation<JSONSchemaFeaturesPayload, JSONSchemaFeaturesPayload>(),
-});
+export const jsonSchemaFeaturesService = nexus.service(
+  "JsonSchemaFeaturesService",
+  {
+    roundTrip: nexus.operation<
+      JSONSchemaFeaturesPayload,
+      JSONSchemaFeaturesPayload
+    >(),
+  },
+);
 
 /**
  * A payload intended to exercise many JSON Schema features.
  */
 export interface JSONSchemaFeaturesPayload {
-  active:       boolean;
-  address:      ShippingAddress;
-  contact:      PrimaryContact;
-  count:        number;
-  fixedKind:    FixedKind;
-  history:      HistoryEvent[];
-  id:           string;
-  manager:      Manager;
-  metadata:     { [key: string]: string };
+  active: boolean;
+  address: ShippingAddress;
+  contact: PrimaryContact;
+  count: number;
+  fixedKind: FixedKind;
+  history: HistoryEvent[];
+  id: string;
+  manager: Manager;
+  metadata: { [key: string]: string };
   nullableNote: null | string;
-  pet:          Cat;
-  price:        number;
-  scoreMatrix:  Array<number[]>;
-  status:       Status;
-  tags:         string[];
-  timestamp:    string;
-  variant:      number | string;
+  pet: Cat;
+  price: number;
+  scoreMatrix: Array<number[]>;
+  status: Status;
+  tags: string[];
+  timestamp: string;
+  variant: number | string;
 }
 
 export interface ShippingAddress {
-  city:          string;
-  countryCode:   string;
-  line1:         string;
-  postalCode?:   string;
+  city: string;
+  countryCode: string;
+  line1: string;
+  postalCode?: string;
   instructions?: string;
-  residential:   boolean;
+  residential: boolean;
   [property: string]: any;
 }
 
 export interface PrimaryContact {
-  email:  string;
+  email: string;
   method: Method;
 }
 
@@ -57,8 +63,8 @@ export enum FixedKind {
 
 export interface HistoryEvent {
   action: Action;
-  actor:  number | string;
-  at:     string;
+  actor: number | string;
+  at: string;
 }
 
 export enum Action {
@@ -67,16 +73,16 @@ export enum Action {
 }
 
 export interface Manager {
-  email:      string;
-  name:       string;
+  email: string;
+  name: string;
   department: string;
-  reports?:   number;
+  reports?: number;
   [property: string]: any;
 }
 
 export interface Cat {
   hunts?: boolean;
-  kind:   Kind;
+  kind: Kind;
   breed?: Breed;
 }
 

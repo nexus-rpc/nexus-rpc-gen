@@ -12,7 +12,10 @@ export const kitchenSinkService = nexus.service("KitchenSinkService", {
   /**
    * Counts the characters in the string
    */
-  scalarArgScalarResult: nexus.operation<KitchenSinkServiceScalarArgScalarResultInput, KitchenSinkServiceScalarArgScalarResultOutput>(),
+  scalarArgScalarResult: nexus.operation<
+    KitchenSinkServiceScalarArgScalarResultInput,
+    KitchenSinkServiceScalarArgScalarResultOutput
+  >(),
 
   /**
    * Counts the characters in a string
@@ -39,13 +42,14 @@ export const kitchenSinkService = nexus.service("KitchenSinkService", {
 });
 
 export const strangeItem = nexus.service("Strange{Item}", {
-  strangeItem: nexus.operation<StrangeItem, PurpleStrangeItem>({ name: "Strange{Item}" }),
+  strangeItem: nexus.operation<StrangeItem, PurpleStrangeItem>({
+    name: "Strange{Item}",
+  }),
 
   strangeItem2: nexus.operation<void, void>({ name: "StrangeItem" }),
 });
 
-export const strangeItem2 = nexus.service("StrangeItem", {
-});
+export const strangeItem2 = nexus.service("StrangeItem", {});
 
 export const reservedWordService = nexus.service("ReservedWordService", {
   toStringOperation: nexus.operation<void, void>({ name: "ToString" }),
@@ -102,7 +106,7 @@ export interface KitchenSinkServiceComplexArgComplexResultInlineOutput {
 }
 
 export interface ComplexInput {
-  selfRef?:       ComplexInput;
+  selfRef?: ComplexInput;
   someSharedObj?: SharedObject;
 }
 
@@ -111,7 +115,7 @@ export interface SharedObject {
 }
 
 export interface ComplexOutput {
-  selfRef?:       ComplexOutput;
+  selfRef?: ComplexOutput;
   someSharedObj?: SharedObject;
 }
 
@@ -134,8 +138,8 @@ export interface PurpleStrangeItem {
 }
 
 export interface DateInput {
-  date?:     string;
+  date?: string;
   dateTime?: string;
-  time?:     string;
+  time?: string;
   [property: string]: any;
 }
