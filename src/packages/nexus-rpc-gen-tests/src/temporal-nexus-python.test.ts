@@ -106,10 +106,7 @@ test("Python temporal nexus payload visitor registry supports multiple services 
     '("FirstService", "OpTwo")',
     '("SecondService", "OpThree")',
   ]) {
-    assert.ok(
-      result.stdout.includes(key),
-      `registry should include ${key}`,
-    );
+    assert.ok(result.stdout.includes(key), `registry should include ${key}`);
   }
   assert.equal(
     result.stdout.match(/\(".*?", ".*?"\): _temporal_nexus_visit_/g)?.length,

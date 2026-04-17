@@ -56,19 +56,17 @@ test("Go temporal nexus payload codec support is optional", async () => {
   assert.ok(
     withFlag.stdout.includes(
       "func (r *temporalNexusPayloadVisitor) visitUserMetadata(",
-      ),
+    ),
     "user metadata should have a structural visitor helper",
   );
   assert.ok(
     withFlag.stdout.includes(
-      'visitedValue, err := r.visitPayloadJSON(visited.Details)',
+      "visitedValue, err := r.visitPayloadJSON(visited.Details)",
     ),
     "payload fields should be visited structurally",
   );
   assert.ok(
-    withFlag.stdout.includes(
-      "visited.Payloads = visitedValue",
-    ),
+    withFlag.stdout.includes("visited.Payloads = visitedValue"),
     "input payload arrays should be visited through the payloads field",
   );
   assert.ok(
@@ -94,7 +92,7 @@ test("Go temporal nexus payload codec support is optional", async () => {
     "named payloads schema should be preserved in the generated Go model",
   );
   assert.ok(
-    withFlag.stdout.includes("Payloads []Payload `json:\"payloads,omitempty\"`"),
+    withFlag.stdout.includes('Payloads []Payload `json:"payloads,omitempty"`'),
     "payload arrays should use the named payload type",
   );
   assert.ok(

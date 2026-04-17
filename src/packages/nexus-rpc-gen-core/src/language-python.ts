@@ -140,9 +140,7 @@ class PythonRenderAdapter extends RenderAdapter<PythonRenderAccessible> {
   private temporalClassRewritePlans:
     | Map<string, TemporalClassRewritePlan>
     | undefined;
-  private temporalClassRewritePlanInProgress:
-    | Set<string>
-    | undefined;
+  private temporalClassRewritePlanInProgress: Set<string> | undefined;
   private nexusPayloadVisitors:
     | readonly TemporalOperationPayloadVisitor[]
     | undefined;
@@ -231,11 +229,7 @@ class PythonRenderAdapter extends RenderAdapter<PythonRenderAccessible> {
           t,
           "none",
           (name: Name, jsonName: string) => {
-            this.render.emitLine([
-              name,
-              " = ",
-              this.render.string(jsonName),
-            ]);
+            this.render.emitLine([name, " = ", this.render.string(jsonName)]);
           },
         );
       },
@@ -261,10 +255,10 @@ class PythonRenderAdapter extends RenderAdapter<PythonRenderAccessible> {
           "):",
         ],
         () => {
-        this.render.emitLine("self._payload_visitor = payload_visitor");
-        this.render.emitLine(
-          "self._visit_search_attributes = visit_search_attributes",
-        );
+          this.render.emitLine("self._payload_visitor = payload_visitor");
+          this.render.emitLine(
+            "self._visit_search_attributes = visit_search_attributes",
+          );
         },
       );
       this.render.ensureBlankLine();
@@ -284,11 +278,7 @@ class PythonRenderAdapter extends RenderAdapter<PythonRenderAccessible> {
       );
       this.render.ensureBlankLine();
       this.render.emitBlock(
-        [
-          "async def _visit_payloads_json(",
-          "self, value: dict",
-          ") -> dict:",
-        ],
+        ["async def _visit_payloads_json(", "self, value: dict", ") -> dict:"],
         () => {
           this.render.emitLine(
             "payloads = ParseDict(value, ",
@@ -358,23 +348,23 @@ class PythonRenderAdapter extends RenderAdapter<PythonRenderAccessible> {
           ") -> temporalio.api.common.v1.Payload:",
         ],
         () => {
-        this.render.emitLine("try:");
-        this.render.indent(() => {
-          this.render.emitLine("value = json.loads(payload.data)");
-        });
-        this.render.emitLine("except json.JSONDecodeError:");
-        this.render.indent(() => {
-          this.render.emitLine("return payload");
-        });
-        this.render.emitLine("if not isinstance(value, dict):");
-        this.render.indent(() => {
-          this.render.emitLine("return payload");
-        });
+          this.render.emitLine("try:");
+          this.render.indent(() => {
+            this.render.emitLine("value = json.loads(payload.data)");
+          });
+          this.render.emitLine("except json.JSONDecodeError:");
+          this.render.indent(() => {
+            this.render.emitLine("return payload");
+          });
+          this.render.emitLine("if not isinstance(value, dict):");
+          this.render.indent(() => {
+            this.render.emitLine("return payload");
+          });
           this.render.emitLine(
             "visitor = _TemporalNexusPayloadVisitor(",
             "payload_visitor, visit_search_attributes)",
           );
-        this.render.emitLine(
+          this.render.emitLine(
             "visited = await visitor.",
             this.makeTemporalClassVisitHelperName(visitor.inputTypeName),
             "(value)",
@@ -427,9 +417,9 @@ class PythonRenderAdapter extends RenderAdapter<PythonRenderAccessible> {
                 serviceName,
                 operationName,
                 inputTypeName: operation.input.name,
-            helperName: this.makeTemporalNexusVisitorFunctionName(
-              operation.input.name,
-            ),
+                helperName: this.makeTemporalNexusVisitorFunctionName(
+                  operation.input.name,
+                ),
               },
             ];
           },
@@ -632,15 +622,11 @@ class PythonRenderAdapter extends RenderAdapter<PythonRenderAccessible> {
           });
         }
         if (plan.directRewriteKind == "payload") {
-          this.render.emitLine(
-            "return await self._visit_payload_json(value)",
-          );
+          this.render.emitLine("return await self._visit_payload_json(value)");
           return;
         }
         if (plan.directRewriteKind == "payloads") {
-          this.render.emitLine(
-            "return await self._visit_payloads_json(value)",
-          );
+          this.render.emitLine("return await self._visit_payloads_json(value)");
           return;
         }
         this.render.emitLine("visited = dict(value)");
@@ -672,7 +658,7 @@ class PythonRenderAdapter extends RenderAdapter<PythonRenderAccessible> {
       this.render.indent(() => {
         this.render.emitLine(
           fieldReference,
-            " = await self._visit_payloads_json(",
+          " = await self._visit_payloads_json(",
           fieldReference,
           ")",
         );
@@ -684,7 +670,7 @@ class PythonRenderAdapter extends RenderAdapter<PythonRenderAccessible> {
       this.render.indent(() => {
         this.render.emitLine(
           fieldReference,
-            " = await self._visit_payload_map_json(",
+          " = await self._visit_payload_map_json(",
           fieldRewrite.messageType,
           ", ",
           fieldReference,
