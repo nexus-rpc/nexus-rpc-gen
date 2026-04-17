@@ -715,6 +715,7 @@ class GoRenderAdapter extends RenderAdapter<GoRenderAccessible> {
   }
 
   emitTemporalClassRewritePlan(plan: TemporalClassRewritePlan) {
+    const commonv1 = this.imports["go.temporal.io/api/common/v1"];
     this.render.emitBlock(
       [
         "func (r *temporalNexusPayloadVisitor) ",
@@ -735,49 +736,72 @@ class GoRenderAdapter extends RenderAdapter<GoRenderAccessible> {
         this.render.indent(() => this.render.emitLine("return nil, nil"));
         this.render.emitLine("}");
         if (plan.directRewriteKind == "payload") {
-          this.render.emitLine("visited, err := r.visitPayloadJSON(value)");
+          this.render.emitLine("visitedJSON, err := r.visitPayloadJSON(value)");
           this.render.emitLine("if err != nil {");
           this.render.indent(() => this.render.emitLine("return nil, err"));
           this.render.emitLine("}");
+          this.render.emitLine("visitedData, err := json.Marshal(visitedJSON)");
+          this.render.emitLine("if err != nil {");
+          this.render.indent(() => this.render.emitLine("return nil, err"));
+          this.render.emitLine("}");
+          this.render.emitLine("visitedValue := &", plan.typeName, "{}");
           this.render.emitLine(
-            "visitedValue, ok := visited.(*",
-            plan.typeName,
-            ")",
+            "if err := json.Unmarshal(visitedData, visitedValue); err != nil {",
           );
-          this.render.emitLine("if !ok {");
-          this.render.indent(() =>
-            this.render.emitLine(
-              'return nil, errors.New("temporal nexus payload visitor expected rewritten ',
-              "*",
-              plan.typeName,
-              '")',
-            ),
-          );
+          this.render.indent(() => this.render.emitLine("return nil, err"));
           this.render.emitLine("}");
           this.render.emitLine("return visitedValue, nil");
           return;
         }
         if (plan.directRewriteKind == "payloads") {
-          this.render.emitLine("visited, err := r.visitPayloadsJSON(value)");
+          this.render.emitLine("visited := *value");
+          this.render.emitLine(
+            "payloads := make([]*",
+            commonv1,
+            ".Payload, len(value.Payloads))",
+          );
+          this.render.emitLine("for i, messageValue := range value.Payloads {");
+          this.render.indent(() => {
+            this.render.emitLine("payload := &", commonv1, ".Payload{}");
+            this.render.emitLine(
+              "if err := temporalNexusJSONValueToMessage(messageValue, payload); err != nil {",
+            );
+            this.render.indent(() => this.render.emitLine("return nil, err"));
+            this.render.emitLine("}");
+            this.render.emitLine("payloads[i] = payload");
+          });
+          this.render.emitLine("}");
+          this.render.emitLine(
+            "visitedPayloads, err := r.payloadVisitor(payloads)",
+          );
           this.render.emitLine("if err != nil {");
           this.render.indent(() => this.render.emitLine("return nil, err"));
           this.render.emitLine("}");
           this.render.emitLine(
-            "visitedValue, ok := visited.(*",
-            plan.typeName,
-            ")",
+            "visited.Payloads = make([]",
+            "Payload",
+            ", len(visitedPayloads))",
           );
-          this.render.emitLine("if !ok {");
-          this.render.indent(() =>
+          this.render.emitLine("for i, payload := range visitedPayloads {");
+          this.render.indent(() => {
             this.render.emitLine(
-              'return nil, errors.New("temporal nexus payload visitor expected rewritten ',
-              "*",
-              plan.typeName,
-              '")',
-            ),
-          );
+              "visitedJSON, err := temporalNexusMessageToJSONValue(payload)",
+            );
+            this.render.emitLine("if err != nil {");
+            this.render.indent(() => this.render.emitLine("return nil, err"));
+            this.render.emitLine("}");
+            this.render.emitLine("visitedData, err := json.Marshal(visitedJSON)");
+            this.render.emitLine("if err != nil {");
+            this.render.indent(() => this.render.emitLine("return nil, err"));
+            this.render.emitLine("}");
+            this.render.emitLine(
+              "if err := json.Unmarshal(visitedData, &visited.Payloads[i]); err != nil {",
+            );
+            this.render.indent(() => this.render.emitLine("return nil, err"));
+            this.render.emitLine("}");
+          });
           this.render.emitLine("}");
-          this.render.emitLine("return visitedValue, nil");
+          this.render.emitLine("return &visited, nil");
           return;
         }
         this.render.emitLine("visited := *value");
@@ -853,13 +877,52 @@ class GoRenderAdapter extends RenderAdapter<GoRenderAccessible> {
       }
       if (fieldRewrite.kind == "array") {
         this.render.emitLine(
-          'return nil, errors.New("temporal nexus payload visitor does not support array object fields in Go yet")',
+          "for i := range visited.",
+          fieldName,
+          " {",
         );
+        this.render.indent(() => {
+          this.render.emitLine(
+            "visitedValue, err := r.",
+            fieldRewrite.helperName,
+            "(&visited.",
+            fieldName,
+            "[i])",
+          );
+          this.render.emitLine("if err != nil {");
+          this.render.indent(() => this.render.emitLine("return nil, err"));
+          this.render.emitLine("}");
+          this.render.emitLine("if visitedValue != nil {");
+          this.render.indent(() =>
+            this.render.emitLine("visited.", fieldName, "[i] = *visitedValue"),
+          );
+          this.render.emitLine("}");
+        });
+        this.render.emitLine("}");
         return;
       }
       this.render.emitLine(
-        'return nil, errors.New("temporal nexus payload visitor does not support map object fields in Go yet")',
+        "for key, value := range visited.",
+        fieldName,
+        " {",
       );
+      this.render.indent(() => {
+        this.render.emitLine("currentValue := value");
+        this.render.emitLine(
+          "visitedValue, err := r.",
+          fieldRewrite.helperName,
+          "(&currentValue)",
+        );
+        this.render.emitLine("if err != nil {");
+        this.render.indent(() => this.render.emitLine("return nil, err"));
+        this.render.emitLine("}");
+        this.render.emitLine("if visitedValue != nil {");
+        this.render.indent(() =>
+          this.render.emitLine("visited.", fieldName, "[key] = *visitedValue"),
+        );
+        this.render.emitLine("}");
+      });
+      this.render.emitLine("}");
     });
     this.render.emitLine("}");
   }
@@ -1081,6 +1144,12 @@ class GoRenderAdapter extends RenderAdapter<GoRenderAccessible> {
   getTemporalDirectRewriteKind(
     typeName: string,
   ): TemporalTerminalRewriteKind | undefined {
+    if (typeName == "Payload") {
+      return "payload";
+    }
+    if (typeName == "Payloads") {
+      return "payloads";
+    }
     return undefined;
   }
 
@@ -1089,39 +1158,9 @@ class GoRenderAdapter extends RenderAdapter<GoRenderAccessible> {
     jsonName: string,
     goFieldName: string,
   ): TemporalFieldRewrite | undefined {
-    if (typeName == "Header" && jsonName == "fields") {
-      return {
-        kind: "payloadMap",
-        jsonName,
-        goFieldName,
-        mapKind: "headerFields",
-      };
-    }
-    if (typeName == "Memo" && jsonName == "fields") {
-      return {
-        kind: "payloadMap",
-        jsonName,
-        goFieldName,
-        mapKind: "memoFields",
-      };
-    }
-    if (typeName == "SearchAttributes" && jsonName == "indexedFields") {
-      return {
-        kind: "payloadMap",
-        jsonName,
-        goFieldName,
-        mapKind: "searchAttributes",
-      };
-    }
-    if (
-      typeName == "UserMetadata" &&
-      (jsonName == "summary" || jsonName == "details")
-    ) {
-      return { kind: "payload", jsonName, goFieldName };
-    }
-    if (typeName == "Input" && jsonName == "payloads") {
-      return { kind: "payloads", jsonName, goFieldName };
-    }
+    void typeName;
+    void jsonName;
+    void goFieldName;
     return undefined;
   }
 

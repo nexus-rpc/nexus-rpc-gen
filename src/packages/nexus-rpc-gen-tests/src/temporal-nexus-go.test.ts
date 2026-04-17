@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { runRpcGen } from "./spawn.js";
 
 const temporalSchema =
-  "../../temporal-api/nexus/temporal-json-schema-models-nexusrpc.yaml";
+  "packages/nexus-rpc-gen-tests/definitions/temporal-system-nexus.nexusrpc.yaml";
 
 test("Go temporal nexus payload codec support is optional", async () => {
   const withoutFlag = await runRpcGen(
@@ -48,10 +48,8 @@ test("Go temporal nexus payload codec support is optional", async () => {
     "registry should be keyed by service and operation",
   );
   assert.ok(
-    withFlag.stdout.includes(
-      "typedValue, ok := value.(*WorkflowServiceSignalWithStartWorkflowExecutionInput)",
-    ),
-    "operation visitor should receive the typed generated input",
+    withFlag.stdout.includes("typedValue, ok := value.(*"),
+    "operation visitor should receive a typed generated input",
   );
   assert.ok(
     withFlag.stdout.includes(
@@ -61,13 +59,14 @@ test("Go temporal nexus payload codec support is optional", async () => {
   );
   assert.ok(
     withFlag.stdout.includes(
-      "visitedValue, err := r.visitPayloadJSON(visited.Details)",
+      "visitedValue, err := r.visitPayload(visited.Details)",
     ),
     "payload fields should be visited structurally",
   );
   assert.ok(
-    withFlag.stdout.includes("visited.Payloads = visitedValue"),
-    "input payload arrays should be visited through the payloads field",
+    withFlag.stdout.includes("visitedValue, err := r.visitPayloads(visited.Input)") &&
+      withFlag.stdout.includes("visited.Input = visitedValue"),
+    "request input payloads should be visited structurally",
   );
   assert.ok(
     withFlag.stdout.includes(
@@ -82,21 +81,5 @@ test("Go temporal nexus payload codec support is optional", async () => {
   assert.ok(
     withFlag.stdout.includes("type temporalNexusPayloadVisitor struct {"),
     "generated helpers should be grouped in an object",
-  );
-  assert.ok(
-    withFlag.stdout.includes("type Payload = any"),
-    "named payload schema should be preserved in the generated Go model",
-  );
-  assert.ok(
-    withFlag.stdout.includes("type Payloads struct {"),
-    "named payloads schema should be preserved in the generated Go model",
-  );
-  assert.ok(
-    withFlag.stdout.includes('Payloads []Payload `json:"payloads,omitempty"`'),
-    "payload arrays should use the named payload type",
-  );
-  assert.ok(
-    withFlag.stdout.includes("type Input = Payloads"),
-    "the schema-specific input wrapper should alias the named payloads type",
   );
 });

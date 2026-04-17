@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { runRpcGen } from "./spawn.js";
 
 const temporalSchema =
-  "../../temporal-api/nexus/temporal-json-schema-models-nexusrpc.yaml";
+  "packages/nexus-rpc-gen-tests/definitions/temporal-system-nexus.nexusrpc.yaml";
 const temporalMultiServiceSchema =
   "packages/nexus-rpc-gen-tests/definitions/temporal-multi-service.nexusrpc.yaml";
 
