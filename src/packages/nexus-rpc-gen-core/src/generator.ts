@@ -204,15 +204,22 @@ type Input = Payloads`,
     };
 
     for (const definitionSource of this.options.definitionSources) {
+      const sharedTypes = definitionSource.schema.types ?? {};
       const schema: PreparedSchema = {
         sourceURI: definitionSource.fileURI.toString(),
         services: {},
         sharedJsonSchema: {
-          types: definitionSource.schema.types ?? {},
+          types: sharedTypes,
         },
         topLevelJsonSchemaTypes: {},
         topLevelJsonSchemaLocalRefs: {},
       };
+      for (const typeName of Object.keys(sharedTypes)) {
+        if (Object.hasOwn(schema.topLevelJsonSchemaLocalRefs, typeName)) {
+          throw new Error(`Duplicate top-level type reference "${typeName}"`);
+        }
+        schema.topLevelJsonSchemaLocalRefs[typeName] = `#/types/${typeName}`;
+      }
       for (const [serviceName, service] of Object.entries(
         definitionSource.schema.services ?? {},
       )) {
