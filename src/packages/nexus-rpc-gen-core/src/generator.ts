@@ -143,7 +143,8 @@ export class Generator {
         rendererOptions,
       });
       results.forEach(
-        (contents, fileName) => (returnValue[fileName] = contents.lines.join("\n")),
+        (contents, fileName) =>
+          (returnValue[fileName] = contents.lines.join("\n")),
       );
     } catch (error: unknown) {
       if (

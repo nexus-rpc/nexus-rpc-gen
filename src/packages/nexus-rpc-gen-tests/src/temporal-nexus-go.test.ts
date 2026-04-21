@@ -64,8 +64,9 @@ test("Go temporal nexus payload codec support is optional", async () => {
     "payload fields should be visited structurally",
   );
   assert.ok(
-    withFlag.stdout.includes("visitedValue, err := r.visitPayloads(visited.Input)") &&
-      withFlag.stdout.includes("visited.Input = visitedValue"),
+    withFlag.stdout.includes(
+      "visitedValue, err := r.visitPayloads(visited.Input)",
+    ) && withFlag.stdout.includes("visited.Input = visitedValue"),
     "request input payloads should be visited structurally",
   );
   assert.ok(

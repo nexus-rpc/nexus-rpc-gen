@@ -790,7 +790,9 @@ class GoRenderAdapter extends RenderAdapter<GoRenderAccessible> {
             this.render.emitLine("if err != nil {");
             this.render.indent(() => this.render.emitLine("return nil, err"));
             this.render.emitLine("}");
-            this.render.emitLine("visitedData, err := json.Marshal(visitedJSON)");
+            this.render.emitLine(
+              "visitedData, err := json.Marshal(visitedJSON)",
+            );
             this.render.emitLine("if err != nil {");
             this.render.indent(() => this.render.emitLine("return nil, err"));
             this.render.emitLine("}");
@@ -876,11 +878,7 @@ class GoRenderAdapter extends RenderAdapter<GoRenderAccessible> {
         return;
       }
       if (fieldRewrite.kind == "array") {
-        this.render.emitLine(
-          "for i := range visited.",
-          fieldName,
-          " {",
-        );
+        this.render.emitLine("for i := range visited.", fieldName, " {");
         this.render.indent(() => {
           this.render.emitLine(
             "visitedValue, err := r.",
@@ -901,11 +899,7 @@ class GoRenderAdapter extends RenderAdapter<GoRenderAccessible> {
         this.render.emitLine("}");
         return;
       }
-      this.render.emitLine(
-        "for key, value := range visited.",
-        fieldName,
-        " {",
-      );
+      this.render.emitLine("for key, value := range visited.", fieldName, " {");
       this.render.indent(() => {
         this.render.emitLine("currentValue := value");
         this.render.emitLine(
