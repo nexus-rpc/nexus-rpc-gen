@@ -173,9 +173,9 @@ class PythonRenderAdapter extends RenderAdapter<PythonRenderAccessible> {
   }
 
   emitAdditionalImports() {
-    this.render.emitLine("from dataclasses import dataclass");
     if (Object.keys(this.schema.services).length > 0) {
       this.render.emitLine("from nexusrpc import Operation, service");
+      this.render.emitLine("import typing");
     }
     // We have to emit imports for existing types with dots. Unlike the existing
     // withImport/emitImports, we do not want from X import Y, we want just
@@ -726,6 +726,10 @@ class PythonRenderAdapter extends RenderAdapter<PythonRenderAccessible> {
   }
 
   emitServices() {
+    this.render.ensureBlankLine(2);
+    this.render.emitLine(
+      "__nexus_operation_registry__: dict[tuple[str, str], Operation[typing.Any, typing.Any]] = {}",
+    );
     for (const [serviceName, serviceSchema] of Object.entries(
       this.schema.services,
     )) {
@@ -784,30 +788,53 @@ class PythonRenderAdapter extends RenderAdapter<PythonRenderAccessible> {
         },
       );
     });
+    this.render.ensureBlankLine();
+    const propertyNamesInUse = {};
+    for (const opName of Object.keys(serviceSchema.operations)) {
+      const propertyName = this.makeOperationFunctionName(
+        this.propertyNamer.nameStyle(opName),
+        propertyNamesInUse,
+      );
+      this.render.emitLine(
+        "__nexus_operation_registry__[(",
+        this.render.string(serviceName),
+        ", ",
+        this.render.string(opName),
+        ")] = ",
+        typeName,
+        ".",
+        propertyName,
+      );
+    }
   }
 
   emitClass(t: ClassType) {
     const properties: {
+      name: string;
       jsonName: string;
       type: Type;
     }[] = [];
-    this.render.forEachClassProperty(t, "none", (_name, jsonName, cp) => {
-      properties.push({ jsonName, type: cp.type });
+    this.render.forEachClassProperty(t, "none", (name, jsonName, cp) => {
+      properties.push({
+        name: toSnakeCase(jsonName),
+        jsonName,
+        type: cp.type,
+      });
     });
     properties.sort((a, b) => {
       const aOptional = this.isOptionalType(a.type);
       const bOptional = this.isOptionalType(b.type);
       return Number(aOptional) - Number(bOptional);
     });
-    this.render.emitLine("@dataclass");
+    this.render.emitLine("@", this.render.withImport("dataclasses", "dataclass"));
     this.render.declareType(t, () => {
       if (t.getProperties().size === 0) {
         this.render.emitLine("pass");
         return;
       }
-      for (const { jsonName, type } of properties) {
+      for (const { name, jsonName, type } of properties) {
         const typeSource = this.render.pythonType(type, true);
-        this.render.emitLine(jsonName, ": ", typeSource);
+        this.render.emitLine(name, ": ", typeSource);
         this.render.emitDescription(
           this.render.descriptionForClassProperty(t, jsonName),
         );
@@ -846,4 +873,11 @@ class PythonRenderAdapter extends RenderAdapter<PythonRenderAccessible> {
       return this.render.pythonType(type, false);
     }
   }
+}
+
+function toSnakeCase(value: string): string {
+  return value
+    .replace(/([a-z0-9])([A-Z])/g, "$1_$2")
+    .replace(/([A-Z]+)([A-Z][a-z])/g, "$1_$2")
+    .toLowerCase();
 }

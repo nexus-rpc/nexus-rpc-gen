@@ -63,6 +63,7 @@ export class GoLanguageWithNexus extends GoTargetLanguage {
       emitSourceStructure(original) {
         adapter.emitServices();
         original();
+        adapter.emitTemporalNexusProtoSupport();
         adapter.emitTemporalNexusPayloadSupport();
         adapter.emitTemporalNexusPayloadRegistry();
         adapter.render.finishFile(adapter.makeFileName());
@@ -113,6 +114,20 @@ function needsExplicitAlias(mport: string, alias: string): boolean {
 
 function goFieldName(namer: Namer, jsonName: string): string {
   return namer.nameStyle(jsonName);
+}
+
+function parseGoQualifiedTypeRef(ref: string): {
+  importPath: string;
+  typeName: string;
+} {
+  const lastDot = ref.lastIndexOf(".");
+  if (lastDot <= 0 || lastDot == ref.length - 1) {
+    throw new Error(`Invalid Go type reference "${ref}"`);
+  }
+  return {
+    importPath: ref.slice(0, lastDot),
+    typeName: ref.slice(lastDot + 1),
+  };
 }
 
 type GoRenderAccessible = Omit<GoRenderer, "emitTypesAndSupport"> &
@@ -287,6 +302,12 @@ class GoRenderAdapter extends RenderAdapter<GoRenderAccessible> {
         origImports.add("go.temporal.io/api/temporalproto");
         origImports.add("google.golang.org/protobuf/proto");
       }
+      if (Object.keys(this.schema.goProtoRefs).length > 0) {
+        origImports.add("encoding/json");
+        origImports.add("google.golang.org/protobuf/encoding/protojson");
+        origImports.add("google.golang.org/protobuf/proto");
+        origImports.add("reflect");
+      }
       if (this.needsMarshalJSON) {
         origImports.add("encoding/json");
       }
@@ -316,6 +337,18 @@ class GoRenderAdapter extends RenderAdapter<GoRenderAccessible> {
             }
             this._imports[mport] = alias;
           }
+        }
+      }
+      for (const protoRef of Object.values(this.schema.goProtoRefs)) {
+        const { importPath } = parseGoQualifiedTypeRef(protoRef);
+        if (!Object.hasOwn(this._imports, importPath)) {
+          const origAlias = aliasForImport(importPath);
+          let alias = origAlias;
+          let number_ = 0;
+          while (Object.values(this._imports).includes(alias)) {
+            alias = `${origAlias}${++number_}`;
+          }
+          this._imports[importPath] = alias;
         }
       }
     }
@@ -712,6 +745,139 @@ class GoRenderAdapter extends RenderAdapter<GoRenderAccessible> {
       this.emitTemporalClassRewritePlan(plan);
       this.render.ensureBlankLine();
     }
+  }
+
+  emitTemporalNexusProtoSupport() {
+    const goProtoRefs = Object.entries(this.schema.goProtoRefs);
+    if (goProtoRefs.length == 0) {
+      return;
+    }
+
+    const proto = this.imports["google.golang.org/protobuf/proto"];
+    const protojson = this.imports["google.golang.org/protobuf/encoding/protojson"];
+
+    this.render.ensureBlankLine(2);
+    this.render.emitLine(
+      "var temporalNexusProtoTypes = map[reflect.Type]func() ",
+      proto,
+      ".Message{",
+    );
+    this.render.indent(() => {
+      for (const [typeName, protoRef] of goProtoRefs) {
+        const { importPath, typeName: protoTypeName } =
+          parseGoQualifiedTypeRef(protoRef);
+        const protoPkg = this.imports[importPath];
+        this.render.emitLine(
+          "reflect.TypeOf(",
+          typeName,
+          "{}): func() ",
+          proto,
+          ".Message { return &",
+          protoPkg,
+          ".",
+          protoTypeName,
+          "{} },",
+        );
+      }
+    });
+    this.render.emitLine("}");
+    this.render.ensureBlankLine();
+    this.render.emitBlock(
+      ["func GetTemporalNexusProtoMessage(valueOrType any) ", proto, ".Message"],
+      () => {
+        this.render.emitLine("if valueOrType == nil {");
+        this.render.indent(() => this.render.emitLine("return nil"));
+        this.render.emitLine("}");
+        this.render.emitLine(
+          "valueType, ok := valueOrType.(reflect.Type)",
+        );
+        this.render.emitLine("if !ok {");
+        this.render.indent(() =>
+          this.render.emitLine("valueType = reflect.TypeOf(valueOrType)"),
+        );
+        this.render.emitLine("}");
+        this.render.emitLine("for valueType != nil && valueType.Kind() == reflect.Ptr {");
+        this.render.indent(() => this.render.emitLine("valueType = valueType.Elem()"));
+        this.render.emitLine("}");
+        this.render.emitLine("if valueType == nil {");
+        this.render.indent(() => this.render.emitLine("return nil"));
+        this.render.emitLine("}");
+        this.render.emitLine("factory := temporalNexusProtoTypes[valueType]");
+        this.render.emitLine("if factory == nil {");
+        this.render.indent(() => this.render.emitLine("return nil"));
+        this.render.emitLine("}");
+        this.render.emitLine("return factory()");
+      },
+    );
+    this.render.ensureBlankLine();
+    this.render.emitBlock(
+      ["func ToTemporalNexusProto(value any) (", proto, ".Message, error)"],
+      () => {
+        this.render.emitLine("message := GetTemporalNexusProtoMessage(value)");
+        this.render.emitLine("if message == nil {");
+        this.render.indent(() =>
+          this.render.emitLine(
+            'return nil, errors.New("temporal nexus proto type not found")',
+          ),
+        );
+        this.render.emitLine("}");
+        this.render.emitLine("data, err := json.Marshal(value)");
+        this.render.emitLine("if err != nil {");
+        this.render.indent(() => this.render.emitLine("return nil, err"));
+        this.render.emitLine("}");
+        this.render.emitLine(
+          "if err := ",
+          protojson,
+          ".Unmarshal(data, message); err != nil {",
+        );
+        this.render.indent(() => this.render.emitLine("return nil, err"));
+        this.render.emitLine("}");
+        this.render.emitLine("return message, nil");
+      },
+    );
+    this.render.ensureBlankLine();
+    this.render.emitBlock(
+      [
+        "func FromTemporalNexusProto(message ",
+        proto,
+        ".Message, valuePtr any) error",
+      ],
+      () => {
+        this.render.emitLine("if message == nil {");
+        this.render.indent(() =>
+          this.render.emitLine(
+            'return errors.New("temporal nexus proto message is nil")',
+          ),
+        );
+        this.render.emitLine("}");
+        this.render.emitLine("expected := GetTemporalNexusProtoMessage(valuePtr)");
+        this.render.emitLine("if expected == nil {");
+        this.render.indent(() =>
+          this.render.emitLine(
+            'return errors.New("temporal nexus proto type not found")',
+          ),
+        );
+        this.render.emitLine("}");
+        this.render.emitLine(
+          "if reflect.TypeOf(message) != reflect.TypeOf(expected) {",
+        );
+        this.render.indent(() =>
+          this.render.emitLine(
+            'return errors.New("temporal nexus proto message type mismatch")',
+          ),
+        );
+        this.render.emitLine("}");
+        this.render.emitLine(
+          "data, err := ",
+          protojson,
+          ".Marshal(message)",
+        );
+        this.render.emitLine("if err != nil {");
+        this.render.indent(() => this.render.emitLine("return err"));
+        this.render.emitLine("}");
+        this.render.emitLine("return json.Unmarshal(data, valuePtr)");
+      },
+    );
   }
 
   emitTemporalClassRewritePlan(plan: TemporalClassRewritePlan) {

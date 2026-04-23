@@ -32,6 +32,7 @@ export interface PreparedSchema {
   sharedJsonSchema: { types: { [key: string]: any } };
   topLevelJsonSchemaTypes: { [key: string]: any };
   topLevelJsonSchemaLocalRefs: { [key: string]: any };
+  goProtoRefs: { [key: string]: string };
 }
 
 export interface PreparedService {
@@ -53,6 +54,7 @@ export interface PreparedTypeReference {
 export interface MergedSources {
   services: { [key: string]: PreparedService };
   topLevelJsonSchemaTypes: { [key: string]: any };
+  goProtoRefs: { [key: string]: string };
 }
 
 export interface NexusRendererOptions {
@@ -80,6 +82,7 @@ export class Generator {
     const mergedSources: MergedSources = {
       services: {},
       topLevelJsonSchemaTypes: {},
+      goProtoRefs: {},
     };
 
     // Build quicktype input
@@ -179,7 +182,9 @@ export class Generator {
         },
         topLevelJsonSchemaTypes: {},
         topLevelJsonSchemaLocalRefs: {},
+        goProtoRefs: {},
       };
+      collectProtoRefs(schema.goProtoRefs, sharedTypes, "$goProtoRef");
       for (const typeName of Object.keys(sharedTypes)) {
         if (Object.hasOwn(schema.topLevelJsonSchemaLocalRefs, typeName)) {
           throw new Error(`Duplicate top-level type reference "${typeName}"`);
@@ -274,6 +279,7 @@ export class Generator {
       );
     }
     schema.topLevelJsonSchemaTypes[name] = opInOut;
+    collectProtoRefs(schema.goProtoRefs, { [name]: opInOut }, "$goProtoRef");
     return { kind: "jsonSchema", name };
   }
 }
@@ -296,11 +302,35 @@ function mergeSources(
       );
     }
   }
+  for (const name of Object.keys(source.goProtoRefs)) {
+    if (name in destination.goProtoRefs) {
+      throw new Error(
+        `Duplicate Go proto ref for type "${name}" defined across multiple definition files`,
+      );
+    }
+  }
   Object.assign(
     destination.topLevelJsonSchemaTypes,
     source.topLevelJsonSchemaTypes,
   );
   Object.assign(destination.services, source.services);
+  Object.assign(destination.goProtoRefs, source.goProtoRefs);
+}
+
+function collectProtoRefs(
+  destination: { [key: string]: string },
+  types: { [key: string]: any },
+  fieldName: string,
+): void {
+  for (const [typeName, typeSchema] of Object.entries(types)) {
+    if (
+      typeSchema &&
+      typeof typeSchema == "object" &&
+      typeof (typeSchema as Record<string, unknown>)[fieldName] == "string"
+    ) {
+      destination[typeName] = (typeSchema as Record<string, string>)[fieldName];
+    }
+  }
 }
 
 class LocalFetchingSchemaStore extends JSONSchemaStore {

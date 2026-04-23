@@ -44,12 +44,18 @@ test("Python temporal nexus payload codec support is optional", async () => {
     "registry should be keyed by service and operation",
   );
   assert.ok(
+    withFlag.stdout.includes(
+      "__nexus_operation_registry__: dict[tuple[str, str], Operation[typing.Any, typing.Any]] = {",
+    ),
+    "generated Python should emit an operation registry",
+  );
+  assert.ok(
     withFlag.stdout.includes("@dataclass"),
     "generated Python models should use dataclasses",
   );
   assert.ok(
-    withFlag.stdout.includes("workflowId: Optional[str] = None"),
-    "generated Python models should use JSON field names directly",
+    withFlag.stdout.includes("workflow_id: Optional[str] = None"),
+    "generated Python models should use snake_case field names",
   );
   assert.ok(
     !withFlag.stdout.includes("Field("),

@@ -61,6 +61,7 @@ types:
       name:
         type: string
   SignalWithStartWorkflowExecutionRequest:
+    $goProtoRef: go.temporal.io/api/workflowservice/v1.SignalWithStartWorkflowExecutionRequest
     type: object
     properties:
       workflowId:
@@ -80,6 +81,7 @@ types:
       userMetadata:
         $ref: '#/types/UserMetadata'
   SignalWithStartWorkflowExecutionResponse:
+    $goProtoRef: go.temporal.io/api/workflowservice/v1.SignalWithStartWorkflowExecutionResponse
     type: object
     properties:
       runId:

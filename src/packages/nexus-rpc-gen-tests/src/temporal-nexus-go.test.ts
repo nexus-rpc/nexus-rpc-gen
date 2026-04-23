@@ -15,6 +15,15 @@ test("Go temporal nexus payload codec support is optional", async () => {
     !withoutFlag.stdout.includes("TemporalNexusPayloadVisitors"),
     "registry should not be emitted without the generic flag",
   );
+  assert.ok(
+    withoutFlag.stdout.includes("func GetTemporalNexusProtoMessage("),
+    "annotated types should emit proto lookup helpers even without payload codec support",
+  );
+  assert.ok(
+    withoutFlag.stdout.includes("func ToTemporalNexusProto(") &&
+      withoutFlag.stdout.includes("func FromTemporalNexusProto("),
+    "annotated types should emit generated/proto bridge helpers",
+  );
 
   const withFlag = await runRpcGen(
     [
@@ -36,6 +45,12 @@ test("Go temporal nexus payload codec support is optional", async () => {
   assert.ok(
     withFlag.stdout.includes("InputType func() any"),
     "registry entries should carry the input allocator alongside the visitor",
+  );
+  assert.ok(
+    withFlag.stdout.includes(
+      'reflect.TypeOf(SignalWithStartWorkflowExecutionRequest{}): func() proto.Message { return &workflowservicev1.SignalWithStartWorkflowExecutionRequest{} }',
+    ),
+    "annotated types should register their backing proto factory",
   );
   assert.ok(
     withFlag.stdout.includes("func GetTemporalNexusPayloadVisitor("),
