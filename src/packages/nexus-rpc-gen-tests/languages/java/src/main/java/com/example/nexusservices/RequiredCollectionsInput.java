@@ -11,32 +11,17 @@ public class RequiredCollectionsInput {
   private String[] tags;
 
   @JsonProperty("metadata")
-  public Map<String, String> getMetadata() {
-    return metadata;
-  }
-
+  public Map<String, String> getMetadata() { return metadata; }
   @JsonProperty("metadata")
-  public void setMetadata(Map<String, String> value) {
-    this.metadata = value;
-  }
+  public void setMetadata(Map<String, String> value) { this.metadata = value; }
 
   @JsonProperty("optionalList")
-  public long[] getOptionalList() {
-    return optionalList;
-  }
-
+  public long[] getOptionalList() { return optionalList; }
   @JsonProperty("optionalList")
-  public void setOptionalList(long[] value) {
-    this.optionalList = value;
-  }
+  public void setOptionalList(long[] value) { this.optionalList = value; }
 
   @JsonProperty("tags")
-  public String[] getTags() {
-    return tags;
-  }
-
+  public String[] getTags() { return tags; }
   @JsonProperty("tags")
-  public void setTags(String[] value) {
-    this.tags = value;
-  }
+  public void setTags(String[] value) { this.tags = value; }
 }

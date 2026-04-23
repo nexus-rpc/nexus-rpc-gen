@@ -8,12 +8,7 @@ public class RequiredCollectionsOutput {
   private String[] items;
 
   @JsonProperty("items")
-  public String[] getItems() {
-    return items;
-  }
-
+  public String[] getItems() { return items; }
   @JsonProperty("items")
-  public void setItems(String[] value) {
-    this.items = value;
-  }
+  public void setItems(String[] value) { this.items = value; }
 }

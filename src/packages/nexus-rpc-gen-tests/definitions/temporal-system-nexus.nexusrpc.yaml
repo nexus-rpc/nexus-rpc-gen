@@ -1,0 +1,98 @@
+nexusrpc: 1.0.0
+types:
+  Payload:
+    type: object
+    properties:
+      metadata:
+        type: object
+        additionalProperties:
+          type: string
+          format: byte
+      data:
+        type: string
+        format: byte
+      externalPayloads:
+        type: array
+        items:
+          $ref: '#/types/Payload_ExternalPayloadDetails'
+  Payload_ExternalPayloadDetails:
+    type: object
+    properties:
+      sizeBytes:
+        type: string
+  Payloads:
+    type: object
+    properties:
+      payloads:
+        type: array
+        items:
+          $ref: '#/types/Payload'
+  Header:
+    type: object
+    properties:
+      fields:
+        type: object
+        additionalProperties:
+          $ref: '#/types/Payload'
+  Memo:
+    type: object
+    properties:
+      fields:
+        type: object
+        additionalProperties:
+          $ref: '#/types/Payload'
+  SearchAttributes:
+    type: object
+    properties:
+      indexedFields:
+        type: object
+        additionalProperties:
+          $ref: '#/types/Payload'
+  UserMetadata:
+    type: object
+    properties:
+      summary:
+        $ref: '#/types/Payload'
+      details:
+        $ref: '#/types/Payload'
+  WorkflowType:
+    type: object
+    properties:
+      name:
+        type: string
+  SignalWithStartWorkflowExecutionRequest:
+    $goProtoRef: go.temporal.io/api/workflowservice/v1.SignalWithStartWorkflowExecutionRequest
+    type: object
+    properties:
+      workflowId:
+        type: string
+      workflowType:
+        $ref: '#/types/WorkflowType'
+      input:
+        $ref: '#/types/Payloads'
+      signalInput:
+        $ref: '#/types/Payloads'
+      header:
+        $ref: '#/types/Header'
+      memo:
+        $ref: '#/types/Memo'
+      searchAttributes:
+        $ref: '#/types/SearchAttributes'
+      userMetadata:
+        $ref: '#/types/UserMetadata'
+  SignalWithStartWorkflowExecutionResponse:
+    $goProtoRef: go.temporal.io/api/workflowservice/v1.SignalWithStartWorkflowExecutionResponse
+    type: object
+    properties:
+      runId:
+        type: string
+      started:
+        type: boolean
+services:
+  WorkflowService:
+    operations:
+      SignalWithStartWorkflowExecution:
+        input:
+          $ref: '#/types/SignalWithStartWorkflowExecutionRequest'
+        output:
+          $ref: '#/types/SignalWithStartWorkflowExecutionResponse'

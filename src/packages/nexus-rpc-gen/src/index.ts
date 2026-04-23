@@ -43,6 +43,12 @@ const commonOptionDefs = [
     type: Boolean,
     description: "Dump every file that would be written to stdout instead.",
   },
+  {
+    name: "temporal-nexus-payload-codec-support",
+    type: Boolean,
+    description:
+      "Enable optional Temporal-specific Nexus payload codec support for languages that implement it.",
+  },
   { name: "files", multiple: true, defaultOption: true },
 ];
 
@@ -80,7 +86,10 @@ async function main(argv: string[]) {
   const genOptions: GeneratorOptions = {
     lang,
     definitionSources: sources,
-    rendererOptions: {},
+    rendererOptions: {
+      "temporal-nexus-payload-codec-support":
+        rawOptions["temporal-nexus-payload-codec-support"],
+    },
     firstFilenameSansExtensions: path
       .basename(rawOptions.files[0])
       .split(".")[0],

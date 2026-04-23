@@ -1,0 +1,22 @@
+# yaml-language-server: $schema=../../../../schemas/nexus-rpc-gen.json
+nexusrpc: 1.0.0
+services:
+  FirstService:
+    operations:
+      OpOne:
+        input:
+          $ref: ../../../../../temporal-api/openapi/openapiv3.yaml#/components/schemas/SignalWithStartWorkflowExecutionRequest
+        output:
+          $ref: ../../../../../temporal-api/openapi/openapiv3.yaml#/components/schemas/SignalWithStartWorkflowExecutionResponse
+      OpTwo:
+        input:
+          $ref: ../../../../../temporal-api/openapi/openapiv3.yaml#/components/schemas/SignalWithStartWorkflowExecutionRequest
+        output:
+          $ref: ../../../../../temporal-api/openapi/openapiv3.yaml#/components/schemas/SignalWithStartWorkflowExecutionResponse
+  SecondService:
+    operations:
+      OpThree:
+        input:
+          $ref: ../../../../../temporal-api/openapi/openapiv3.yaml#/components/schemas/SignalWithStartWorkflowExecutionRequest
+        output:
+          $ref: ../../../../../temporal-api/openapi/openapiv3.yaml#/components/schemas/SignalWithStartWorkflowExecutionResponse

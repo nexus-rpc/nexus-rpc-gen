@@ -53,6 +53,8 @@ Options
  --out-dir string                                            Out directory. Mutually exclusive with --out-file.         
  --out-file string                                           Out file. Mutually exclusive with --out-dir.               
  --dry-run                                                   Dump every file that would be written to stdout instead.   
+ --temporal-nexus-payload-codec-support                      Enable optional Temporal-specific Nexus payload codec      
+                                                             support for languages that implement it.                   
 ```
 
 Some languages have additional options. Run `nexus-rpc-gen --help` for the full list.

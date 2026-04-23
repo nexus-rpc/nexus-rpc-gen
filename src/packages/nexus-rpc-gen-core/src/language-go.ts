@@ -1,12 +1,15 @@
 import {
+  ArrayType,
   ClassType,
   ConvenienceRenderer,
   goOptions,
   GoRenderer,
   GoTargetLanguage,
+  MapType,
   Name,
   Namer,
   Type,
+  UnionType,
   type LanguageName,
   type OptionValues,
   type RenderContext,
@@ -60,6 +63,9 @@ export class GoLanguageWithNexus extends GoTargetLanguage {
       emitSourceStructure(original) {
         adapter.emitServices();
         original();
+        adapter.emitTemporalNexusProtoSupport();
+        adapter.emitTemporalNexusPayloadSupport();
+        adapter.emitTemporalNexusPayloadRegistry();
         adapter.render.finishFile(adapter.makeFileName());
       },
       emitTopLevel(original, t, name) {
@@ -106,9 +112,28 @@ function needsExplicitAlias(mport: string, alias: string): boolean {
   return alias !== mport.split("/").pop()!;
 }
 
+function goFieldName(namer: Namer, jsonName: string): string {
+  return namer.nameStyle(jsonName);
+}
+
+function parseGoQualifiedTypeRef(ref: string): {
+  importPath: string;
+  typeName: string;
+} {
+  const lastDot = ref.lastIndexOf(".");
+  if (lastDot <= 0 || lastDot == ref.length - 1) {
+    throw new Error(`Invalid Go type reference "${ref}"`);
+  }
+  return {
+    importPath: ref.slice(0, lastDot),
+    typeName: ref.slice(lastDot + 1),
+  };
+}
+
 type GoRenderAccessible = Omit<GoRenderer, "emitTypesAndSupport"> &
   RenderAccessible & {
     readonly _options: OptionValues<typeof goOptions>;
+    emitBlock(line: Sourcelike, f: () => void): void;
     get haveNamedUnions(): boolean;
     collectAllImports(): Set<string>;
     emitClass(c: ClassType, className: Name): void;
@@ -119,9 +144,74 @@ type GoRenderAccessible = Omit<GoRenderer, "emitTypesAndSupport"> &
     nullableGoType(t: Type, withIssues: boolean): Sourcelike;
   };
 
+type TemporalTerminalRewriteKind = "payload" | "payloads";
+
+type TemporalPayloadMapRewriteKind =
+  | "headerFields"
+  | "memoFields"
+  | "searchAttributes";
+
+type TemporalFieldRewrite =
+  | {
+      kind: "payload";
+      jsonName: string;
+      goFieldName: string;
+    }
+  | {
+      kind: "payloadMap";
+      jsonName: string;
+      goFieldName: string;
+      mapKind: TemporalPayloadMapRewriteKind;
+    }
+  | {
+      kind: "payloads";
+      jsonName: string;
+      goFieldName: string;
+    }
+  | {
+      kind: "object";
+      jsonName: string;
+      goFieldName: string;
+      helperName: string;
+    }
+  | {
+      kind: "array";
+      jsonName: string;
+      goFieldName: string;
+      helperName: string;
+    }
+  | {
+      kind: "map";
+      jsonName: string;
+      goFieldName: string;
+      helperName: string;
+    };
+
+interface TemporalClassRewritePlan {
+  typeName: string;
+  helperName: string;
+  directRewriteKind?: TemporalTerminalRewriteKind;
+  onlyWhenVisitSearchAttributes?: boolean;
+  fieldRewrites: TemporalFieldRewrite[];
+}
+
+interface TemporalOperationPayloadVisitor {
+  serviceName: string;
+  operationName: string;
+  inputTypeName: string;
+  helperName: string;
+}
+
 class GoRenderAdapter extends RenderAdapter<GoRenderAccessible> {
   private _imports?: Record<string, string>;
   private _needsMarshalJSON?: boolean;
+  private temporalClassRewritePlans:
+    | Map<string, TemporalClassRewritePlan>
+    | undefined;
+  private temporalClassRewritePlanInProgress: Set<string> | undefined;
+  private nexusPayloadVisitors:
+    | readonly TemporalOperationPayloadVisitor[]
+    | undefined;
 
   assertValidOptions() {
     // Currently, we only support single-file in Go
@@ -139,6 +229,18 @@ class GoRenderAdapter extends RenderAdapter<GoRenderAccessible> {
         ? `${services[0][0]}.go`
         : `${this.nexusRendererOptions.firstFilenameSansExtensions}.go`;
     return name.toLowerCase();
+  }
+
+  makeTemporalClassRewriteHelperName(typeName: string) {
+    return `visit${typeName}`;
+  }
+
+  makeTemporalNexusRewriterFunctionName(typeName: string) {
+    return `visit${typeName}PayloadValue`;
+  }
+
+  renderStringLiteral(value: string): Sourcelike {
+    return [`"${stringEscape(value)}"`];
   }
 
   get needsMarshalJSON(): boolean {
@@ -190,6 +292,22 @@ class GoRenderAdapter extends RenderAdapter<GoRenderAccessible> {
         origImports.add("encoding/json");
       }
       origImports.add("github.com/nexus-rpc/sdk-go/nexus");
+      if (
+        this.nexusRendererOptions.temporalNexusPayloadCodecSupport &&
+        this.getNexusPayloadVisitors().length > 0
+      ) {
+        origImports.add("encoding/json");
+        origImports.add("errors");
+        origImports.add("go.temporal.io/api/common/v1");
+        origImports.add("go.temporal.io/api/temporalproto");
+        origImports.add("google.golang.org/protobuf/proto");
+      }
+      if (Object.keys(this.schema.goProtoRefs).length > 0) {
+        origImports.add("encoding/json");
+        origImports.add("google.golang.org/protobuf/encoding/protojson");
+        origImports.add("google.golang.org/protobuf/proto");
+        origImports.add("reflect");
+      }
       if (this.needsMarshalJSON) {
         origImports.add("encoding/json");
       }
@@ -219,6 +337,18 @@ class GoRenderAdapter extends RenderAdapter<GoRenderAccessible> {
             }
             this._imports[mport] = alias;
           }
+        }
+      }
+      for (const protoRef of Object.values(this.schema.goProtoRefs)) {
+        const { importPath } = parseGoQualifiedTypeRef(protoRef);
+        if (!Object.hasOwn(this._imports, importPath)) {
+          const origAlias = aliasForImport(importPath);
+          let alias = origAlias;
+          let number_ = 0;
+          while (Object.values(this._imports).includes(alias)) {
+            alias = `${origAlias}${++number_}`;
+          }
+          this._imports[importPath] = alias;
         }
       }
     }
@@ -306,6 +436,944 @@ class GoRenderAdapter extends RenderAdapter<GoRenderAccessible> {
       this.render.emitLine("return json.Marshal(a)");
     });
     this.render.emitLine("}");
+  }
+
+  emitTemporalNexusPayloadSupport() {
+    if (
+      !this.nexusRendererOptions.temporalNexusPayloadCodecSupport ||
+      this.getNexusPayloadVisitors().length == 0
+    ) {
+      return;
+    }
+
+    const commonv1 = this.imports["go.temporal.io/api/common/v1"];
+    const temporalproto = this.imports["go.temporal.io/api/temporalproto"];
+    const proto = this.imports["google.golang.org/protobuf/proto"];
+
+    this.render.ensureBlankLine(2);
+    this.render.emitLine(
+      "type TemporalNexusPayloadVisitorFunc func([]*",
+      commonv1,
+      ".Payload) ([]*",
+      commonv1,
+      ".Payload, error)",
+    );
+    this.render.ensureBlankLine();
+    this.render.emitLine(
+      "type TemporalNexusPayloadVisitor func(any, TemporalNexusPayloadVisitorFunc, bool) (any, error)",
+    );
+    this.render.ensureBlankLine();
+    this.render.emitBlock("type TemporalNexusPayloadHandler struct", () => {
+      this.render.emitLine("InputType func() any");
+      this.render.emitLine("Visit TemporalNexusPayloadVisitor");
+    });
+    this.render.ensureBlankLine();
+    this.render.emitBlock("type TemporalNexusPayloadVisitorKey struct", () => {
+      this.render.emitLine("ServiceName string");
+      this.render.emitLine("OperationName string");
+    });
+    this.render.ensureBlankLine();
+    this.render.emitBlock("type temporalNexusPayloadVisitor struct", () => {
+      this.render.emitLine("payloadVisitor TemporalNexusPayloadVisitorFunc");
+      this.render.emitLine("shouldVisitSearchAttributes bool");
+    });
+    this.render.ensureBlankLine();
+    this.render.emitLine(
+      "var temporalNexusPayloadShorthandMetadata = map[string]interface{}{",
+    );
+    this.render.indent(() => {
+      this.render.emitLine(
+        commonv1,
+        ".EnablePayloadShorthandMetadataKey: true,",
+      );
+    });
+    this.render.emitLine("}");
+    this.render.ensureBlankLine();
+    this.render.emitBlock(
+      [
+        "func temporalNexusJSONValueToMessage(",
+        "value any, message ",
+        proto,
+        ".Message",
+        ") error",
+      ],
+      () => {
+        this.render.emitLine("data, err := json.Marshal(value)");
+        this.render.emitLine("if err != nil {");
+        this.render.indent(() => this.render.emitLine("return err"));
+        this.render.emitLine("}");
+        this.render.emitLine(
+          "return ",
+          temporalproto,
+          ".CustomJSONUnmarshalOptions{Metadata: temporalNexusPayloadShorthandMetadata}.Unmarshal(data, message)",
+        );
+      },
+    );
+    this.render.ensureBlankLine();
+    this.render.emitBlock(
+      [
+        "func temporalNexusMessageToJSONValue(",
+        "message ",
+        proto,
+        ".Message",
+        ") (any, error)",
+      ],
+      () => {
+        this.render.emitLine(
+          "data, err := ",
+          temporalproto,
+          ".CustomJSONMarshalOptions{Metadata: temporalNexusPayloadShorthandMetadata}.Marshal(message)",
+        );
+        this.render.emitLine("if err != nil {");
+        this.render.indent(() => this.render.emitLine("return nil, err"));
+        this.render.emitLine("}");
+        this.render.emitLine("var value any");
+        this.render.emitLine(
+          "if err := json.Unmarshal(data, &value); err != nil {",
+        );
+        this.render.indent(() => this.render.emitLine("return nil, err"));
+        this.render.emitLine("}");
+        this.render.emitLine("return value, nil");
+      },
+    );
+    this.render.ensureBlankLine();
+    this.render.emitBlock(
+      [
+        "func (r *temporalNexusPayloadVisitor) visitPayloadJSON(",
+        "value any",
+        ") (any, error)",
+      ],
+      () => {
+        this.render.emitLine("payload := &", commonv1, ".Payload{}");
+        this.render.emitLine(
+          "if err := temporalNexusJSONValueToMessage(value, payload); err != nil {",
+        );
+        this.render.indent(() => this.render.emitLine("return nil, err"));
+        this.render.emitLine("}");
+        this.render.emitLine(
+          "visitedPayloads, err := r.payloadVisitor([]*",
+          commonv1,
+          ".Payload{payload})",
+        );
+        this.render.emitLine("if err != nil {");
+        this.render.indent(() => this.render.emitLine("return nil, err"));
+        this.render.emitLine("}");
+        this.render.emitLine("if len(visitedPayloads) != 1 {");
+        this.render.indent(() =>
+          this.render.emitLine(
+            'return nil, errors.New("temporal nexus payload visitor returned unexpected payload count")',
+          ),
+        );
+        this.render.emitLine("}");
+        this.render.emitLine(
+          "return temporalNexusMessageToJSONValue(visitedPayloads[0])",
+        );
+      },
+    );
+    this.render.ensureBlankLine();
+    this.render.emitBlock(
+      [
+        "func (r *temporalNexusPayloadVisitor) visitPayloadsJSON(",
+        "value []interface{}",
+        ") ([]interface{}, error)",
+      ],
+      () => {
+        this.render.emitLine("payloads := &", commonv1, ".Payloads{}");
+        this.render.emitLine(
+          "if err := temporalNexusJSONValueToMessage(value, payloads); err != nil {",
+        );
+        this.render.indent(() => this.render.emitLine("return nil, err"));
+        this.render.emitLine("}");
+        this.render.emitLine(
+          "visitedPayloads, err := r.payloadVisitor(payloads.Payloads)",
+        );
+        this.render.emitLine("if err != nil {");
+        this.render.indent(() => this.render.emitLine("return nil, err"));
+        this.render.emitLine("}");
+        this.render.emitLine("payloads.Payloads = visitedPayloads");
+        this.render.emitLine(
+          "visitedValue, err := temporalNexusMessageToJSONValue(payloads)",
+        );
+        this.render.emitLine("if err != nil {");
+        this.render.indent(() => this.render.emitLine("return nil, err"));
+        this.render.emitLine("}");
+        this.render.emitLine(
+          "if visitedArray, ok := visitedValue.([]any); ok {",
+        );
+        this.render.indent(() =>
+          this.render.emitLine("return visitedArray, nil"),
+        );
+        this.render.emitLine("}");
+        this.render.emitLine("visitedMap, ok := visitedValue.(map[string]any)");
+        this.render.emitLine("if !ok {");
+        this.render.indent(() =>
+          this.render.emitLine(
+            'return nil, errors.New("temporal nexus payload visitor expected array JSON")',
+          ),
+        );
+        this.render.emitLine("}");
+        this.render.emitLine(
+          'visitedPayloadArray, ok := visitedMap["payloads"].([]interface{})',
+        );
+        this.render.emitLine("if !ok {");
+        this.render.indent(() =>
+          this.render.emitLine(
+            'return nil, errors.New("temporal nexus payload visitor expected payloads array JSON")',
+          ),
+        );
+        this.render.emitLine("}");
+        this.render.emitLine("return visitedPayloadArray, nil");
+      },
+    );
+    this.render.ensureBlankLine();
+    for (const [helperName, messageType, fieldName, needsFlag] of [
+      ["visitHeaderFieldsJSON", `${commonv1}.Header`, "fields", false],
+      ["visitMemoFieldsJSON", `${commonv1}.Memo`, "fields", false],
+      [
+        "visitSearchAttributesFieldsJSON",
+        `${commonv1}.SearchAttributes`,
+        "indexedFields",
+        true,
+      ],
+    ] as const) {
+      this.render.emitBlock(
+        [
+          "func (r *temporalNexusPayloadVisitor) ",
+          helperName,
+          "(value map[string]interface{}) (map[string]interface{}, error)",
+        ],
+        () => {
+          if (needsFlag) {
+            this.render.emitLine("if !r.shouldVisitSearchAttributes {");
+            this.render.indent(() => this.render.emitLine("return value, nil"));
+            this.render.emitLine("}");
+          }
+          this.render.emitLine(
+            "messageValue := map[string]any{",
+            this.renderStringLiteral(fieldName),
+            ": value}",
+          );
+          this.render.emitLine("message := &", messageType, "{}");
+          this.render.emitLine(
+            "if err := temporalNexusJSONValueToMessage(messageValue, message); err != nil {",
+          );
+          this.render.indent(() => this.render.emitLine("return nil, err"));
+          this.render.emitLine("}");
+          this.render.emitLine(
+            "keys := make([]string, 0, len(message.",
+            fieldName == "indexedFields" ? "IndexedFields" : "Fields",
+            "))",
+          );
+          this.render.emitLine(
+            "payloads := make([]*",
+            commonv1,
+            ".Payload, 0, len(message.",
+            fieldName == "indexedFields" ? "IndexedFields" : "Fields",
+            "))",
+          );
+          this.render.emitBlock(
+            [
+              "for key, payload := range message.",
+              fieldName == "indexedFields" ? "IndexedFields" : "Fields",
+            ],
+            () => {
+              this.render.emitLine("keys = append(keys, key)");
+              this.render.emitLine("payloads = append(payloads, payload)");
+            },
+          );
+          this.render.emitLine(
+            "visitedPayloads, err := r.payloadVisitor(payloads)",
+          );
+          this.render.emitLine("if err != nil {");
+          this.render.indent(() => this.render.emitLine("return nil, err"));
+          this.render.emitLine("}");
+          this.render.emitLine("if len(visitedPayloads) != len(keys) {");
+          this.render.indent(() =>
+            this.render.emitLine(
+              'return nil, errors.New("temporal nexus payload visitor returned unexpected payload count")',
+            ),
+          );
+          this.render.emitLine("}");
+          this.render.emitLine(
+            "message.",
+            fieldName == "indexedFields" ? "IndexedFields" : "Fields",
+            " = make(map[string]*",
+            commonv1,
+            ".Payload, len(keys))",
+          );
+          this.render.emitBlock("for i, key := range keys", () => {
+            this.render.emitLine(
+              "message.",
+              fieldName == "indexedFields" ? "IndexedFields" : "Fields",
+              "[key] = visitedPayloads[i]",
+            );
+          });
+          this.render.emitLine(
+            "visitedValue, err := temporalNexusMessageToJSONValue(message)",
+          );
+          this.render.emitLine("if err != nil {");
+          this.render.indent(() => this.render.emitLine("return nil, err"));
+          this.render.emitLine("}");
+          this.render.emitLine(
+            "visitedMap, ok := visitedValue.(map[string]any)",
+          );
+          this.render.emitLine("if !ok {");
+          this.render.indent(() =>
+            this.render.emitLine(
+              'return nil, errors.New("temporal nexus payload visitor expected object JSON")',
+            ),
+          );
+          this.render.emitLine("}");
+          this.render.emitLine(
+            "visitedFieldValue, ok := visitedMap[",
+            this.renderStringLiteral(fieldName),
+            "].(map[string]interface{})",
+          );
+          this.render.emitLine("if !ok {");
+          this.render.indent(() =>
+            this.render.emitLine(
+              'return nil, errors.New("temporal nexus payload visitor expected object field JSON")',
+            ),
+          );
+          this.render.emitLine("}");
+          this.render.emitLine("return visitedFieldValue, nil");
+        },
+      );
+      this.render.ensureBlankLine();
+    }
+    for (const plan of this.getTemporalClassRewritePlans().values()) {
+      this.emitTemporalClassRewritePlan(plan);
+      this.render.ensureBlankLine();
+    }
+  }
+
+  emitTemporalNexusProtoSupport() {
+    const goProtoRefs = Object.entries(this.schema.goProtoRefs);
+    if (goProtoRefs.length == 0) {
+      return;
+    }
+
+    const proto = this.imports["google.golang.org/protobuf/proto"];
+    const protojson = this.imports["google.golang.org/protobuf/encoding/protojson"];
+
+    this.render.ensureBlankLine(2);
+    this.render.emitLine(
+      "var temporalNexusProtoTypes = map[reflect.Type]func() ",
+      proto,
+      ".Message{",
+    );
+    this.render.indent(() => {
+      for (const [typeName, protoRef] of goProtoRefs) {
+        const { importPath, typeName: protoTypeName } =
+          parseGoQualifiedTypeRef(protoRef);
+        const protoPkg = this.imports[importPath];
+        this.render.emitLine(
+          "reflect.TypeOf(",
+          typeName,
+          "{}): func() ",
+          proto,
+          ".Message { return &",
+          protoPkg,
+          ".",
+          protoTypeName,
+          "{} },",
+        );
+      }
+    });
+    this.render.emitLine("}");
+    this.render.ensureBlankLine();
+    this.render.emitBlock(
+      ["func GetTemporalNexusProtoMessage(valueOrType any) ", proto, ".Message"],
+      () => {
+        this.render.emitLine("if valueOrType == nil {");
+        this.render.indent(() => this.render.emitLine("return nil"));
+        this.render.emitLine("}");
+        this.render.emitLine(
+          "valueType, ok := valueOrType.(reflect.Type)",
+        );
+        this.render.emitLine("if !ok {");
+        this.render.indent(() =>
+          this.render.emitLine("valueType = reflect.TypeOf(valueOrType)"),
+        );
+        this.render.emitLine("}");
+        this.render.emitLine("for valueType != nil && valueType.Kind() == reflect.Ptr {");
+        this.render.indent(() => this.render.emitLine("valueType = valueType.Elem()"));
+        this.render.emitLine("}");
+        this.render.emitLine("if valueType == nil {");
+        this.render.indent(() => this.render.emitLine("return nil"));
+        this.render.emitLine("}");
+        this.render.emitLine("factory := temporalNexusProtoTypes[valueType]");
+        this.render.emitLine("if factory == nil {");
+        this.render.indent(() => this.render.emitLine("return nil"));
+        this.render.emitLine("}");
+        this.render.emitLine("return factory()");
+      },
+    );
+    this.render.ensureBlankLine();
+    this.render.emitBlock(
+      ["func ToTemporalNexusProto(value any) (", proto, ".Message, error)"],
+      () => {
+        this.render.emitLine("message := GetTemporalNexusProtoMessage(value)");
+        this.render.emitLine("if message == nil {");
+        this.render.indent(() =>
+          this.render.emitLine(
+            'return nil, errors.New("temporal nexus proto type not found")',
+          ),
+        );
+        this.render.emitLine("}");
+        this.render.emitLine("data, err := json.Marshal(value)");
+        this.render.emitLine("if err != nil {");
+        this.render.indent(() => this.render.emitLine("return nil, err"));
+        this.render.emitLine("}");
+        this.render.emitLine(
+          "if err := ",
+          protojson,
+          ".Unmarshal(data, message); err != nil {",
+        );
+        this.render.indent(() => this.render.emitLine("return nil, err"));
+        this.render.emitLine("}");
+        this.render.emitLine("return message, nil");
+      },
+    );
+    this.render.ensureBlankLine();
+    this.render.emitBlock(
+      [
+        "func FromTemporalNexusProto(message ",
+        proto,
+        ".Message, valuePtr any) error",
+      ],
+      () => {
+        this.render.emitLine("if message == nil {");
+        this.render.indent(() =>
+          this.render.emitLine(
+            'return errors.New("temporal nexus proto message is nil")',
+          ),
+        );
+        this.render.emitLine("}");
+        this.render.emitLine("expected := GetTemporalNexusProtoMessage(valuePtr)");
+        this.render.emitLine("if expected == nil {");
+        this.render.indent(() =>
+          this.render.emitLine(
+            'return errors.New("temporal nexus proto type not found")',
+          ),
+        );
+        this.render.emitLine("}");
+        this.render.emitLine(
+          "if reflect.TypeOf(message) != reflect.TypeOf(expected) {",
+        );
+        this.render.indent(() =>
+          this.render.emitLine(
+            'return errors.New("temporal nexus proto message type mismatch")',
+          ),
+        );
+        this.render.emitLine("}");
+        this.render.emitLine(
+          "data, err := ",
+          protojson,
+          ".Marshal(message)",
+        );
+        this.render.emitLine("if err != nil {");
+        this.render.indent(() => this.render.emitLine("return err"));
+        this.render.emitLine("}");
+        this.render.emitLine("return json.Unmarshal(data, valuePtr)");
+      },
+    );
+  }
+
+  emitTemporalClassRewritePlan(plan: TemporalClassRewritePlan) {
+    const commonv1 = this.imports["go.temporal.io/api/common/v1"];
+    this.render.emitBlock(
+      [
+        "func (r *temporalNexusPayloadVisitor) ",
+        plan.helperName,
+        "(value *",
+        plan.typeName,
+        ") (*",
+        plan.typeName,
+        ", error)",
+      ],
+      () => {
+        if (plan.onlyWhenVisitSearchAttributes) {
+          this.render.emitLine("if !r.shouldVisitSearchAttributes {");
+          this.render.indent(() => this.render.emitLine("return value, nil"));
+          this.render.emitLine("}");
+        }
+        this.render.emitLine("if value == nil {");
+        this.render.indent(() => this.render.emitLine("return nil, nil"));
+        this.render.emitLine("}");
+        if (plan.directRewriteKind == "payload") {
+          this.render.emitLine("visitedJSON, err := r.visitPayloadJSON(value)");
+          this.render.emitLine("if err != nil {");
+          this.render.indent(() => this.render.emitLine("return nil, err"));
+          this.render.emitLine("}");
+          this.render.emitLine("visitedData, err := json.Marshal(visitedJSON)");
+          this.render.emitLine("if err != nil {");
+          this.render.indent(() => this.render.emitLine("return nil, err"));
+          this.render.emitLine("}");
+          this.render.emitLine("visitedValue := &", plan.typeName, "{}");
+          this.render.emitLine(
+            "if err := json.Unmarshal(visitedData, visitedValue); err != nil {",
+          );
+          this.render.indent(() => this.render.emitLine("return nil, err"));
+          this.render.emitLine("}");
+          this.render.emitLine("return visitedValue, nil");
+          return;
+        }
+        if (plan.directRewriteKind == "payloads") {
+          this.render.emitLine("visited := *value");
+          this.render.emitLine(
+            "payloads := make([]*",
+            commonv1,
+            ".Payload, len(value.Payloads))",
+          );
+          this.render.emitLine("for i, messageValue := range value.Payloads {");
+          this.render.indent(() => {
+            this.render.emitLine("payload := &", commonv1, ".Payload{}");
+            this.render.emitLine(
+              "if err := temporalNexusJSONValueToMessage(messageValue, payload); err != nil {",
+            );
+            this.render.indent(() => this.render.emitLine("return nil, err"));
+            this.render.emitLine("}");
+            this.render.emitLine("payloads[i] = payload");
+          });
+          this.render.emitLine("}");
+          this.render.emitLine(
+            "visitedPayloads, err := r.payloadVisitor(payloads)",
+          );
+          this.render.emitLine("if err != nil {");
+          this.render.indent(() => this.render.emitLine("return nil, err"));
+          this.render.emitLine("}");
+          this.render.emitLine(
+            "visited.Payloads = make([]",
+            "Payload",
+            ", len(visitedPayloads))",
+          );
+          this.render.emitLine("for i, payload := range visitedPayloads {");
+          this.render.indent(() => {
+            this.render.emitLine(
+              "visitedJSON, err := temporalNexusMessageToJSONValue(payload)",
+            );
+            this.render.emitLine("if err != nil {");
+            this.render.indent(() => this.render.emitLine("return nil, err"));
+            this.render.emitLine("}");
+            this.render.emitLine(
+              "visitedData, err := json.Marshal(visitedJSON)",
+            );
+            this.render.emitLine("if err != nil {");
+            this.render.indent(() => this.render.emitLine("return nil, err"));
+            this.render.emitLine("}");
+            this.render.emitLine(
+              "if err := json.Unmarshal(visitedData, &visited.Payloads[i]); err != nil {",
+            );
+            this.render.indent(() => this.render.emitLine("return nil, err"));
+            this.render.emitLine("}");
+          });
+          this.render.emitLine("}");
+          this.render.emitLine("return &visited, nil");
+          return;
+        }
+        this.render.emitLine("visited := *value");
+        for (const fieldRewrite of plan.fieldRewrites) {
+          this.emitTemporalFieldRewrite(fieldRewrite);
+        }
+        this.render.emitLine("return &visited, nil");
+      },
+    );
+  }
+
+  emitTemporalFieldRewrite(fieldRewrite: TemporalFieldRewrite) {
+    const fieldName = fieldRewrite.goFieldName;
+    this.render.emitLine("if visited.", fieldName, " != nil {");
+    this.render.indent(() => {
+      if (fieldRewrite.kind == "payload") {
+        this.render.emitLine(
+          "visitedValue, err := r.visitPayloadJSON(visited.",
+          fieldName,
+          ")",
+        );
+        this.render.emitLine("if err != nil {");
+        this.render.indent(() => this.render.emitLine("return nil, err"));
+        this.render.emitLine("}");
+        this.render.emitLine("visited.", fieldName, " = visitedValue");
+        return;
+      }
+      if (fieldRewrite.kind == "payloads") {
+        this.render.emitLine(
+          "visitedValue, err := r.visitPayloadsJSON(visited.",
+          fieldName,
+          ")",
+        );
+        this.render.emitLine("if err != nil {");
+        this.render.indent(() => this.render.emitLine("return nil, err"));
+        this.render.emitLine("}");
+        this.render.emitLine("visited.", fieldName, " = visitedValue");
+        return;
+      }
+      if (fieldRewrite.kind == "payloadMap") {
+        const helperName =
+          fieldRewrite.mapKind == "headerFields"
+            ? "visitHeaderFieldsJSON"
+            : fieldRewrite.mapKind == "memoFields"
+              ? "visitMemoFieldsJSON"
+              : "visitSearchAttributesFieldsJSON";
+        this.render.emitLine(
+          "visitedValue, err := r.",
+          helperName,
+          "(visited.",
+          fieldName,
+          ")",
+        );
+        this.render.emitLine("if err != nil {");
+        this.render.indent(() => this.render.emitLine("return nil, err"));
+        this.render.emitLine("}");
+        this.render.emitLine("visited.", fieldName, " = visitedValue");
+        return;
+      }
+      if (fieldRewrite.kind == "object") {
+        this.render.emitLine(
+          "visitedValue, err := r.",
+          fieldRewrite.helperName,
+          "(visited.",
+          fieldName,
+          ")",
+        );
+        this.render.emitLine("if err != nil {");
+        this.render.indent(() => this.render.emitLine("return nil, err"));
+        this.render.emitLine("}");
+        this.render.emitLine("visited.", fieldName, " = visitedValue");
+        return;
+      }
+      if (fieldRewrite.kind == "array") {
+        this.render.emitLine("for i := range visited.", fieldName, " {");
+        this.render.indent(() => {
+          this.render.emitLine(
+            "visitedValue, err := r.",
+            fieldRewrite.helperName,
+            "(&visited.",
+            fieldName,
+            "[i])",
+          );
+          this.render.emitLine("if err != nil {");
+          this.render.indent(() => this.render.emitLine("return nil, err"));
+          this.render.emitLine("}");
+          this.render.emitLine("if visitedValue != nil {");
+          this.render.indent(() =>
+            this.render.emitLine("visited.", fieldName, "[i] = *visitedValue"),
+          );
+          this.render.emitLine("}");
+        });
+        this.render.emitLine("}");
+        return;
+      }
+      this.render.emitLine("for key, value := range visited.", fieldName, " {");
+      this.render.indent(() => {
+        this.render.emitLine("currentValue := value");
+        this.render.emitLine(
+          "visitedValue, err := r.",
+          fieldRewrite.helperName,
+          "(&currentValue)",
+        );
+        this.render.emitLine("if err != nil {");
+        this.render.indent(() => this.render.emitLine("return nil, err"));
+        this.render.emitLine("}");
+        this.render.emitLine("if visitedValue != nil {");
+        this.render.indent(() =>
+          this.render.emitLine("visited.", fieldName, "[key] = *visitedValue"),
+        );
+        this.render.emitLine("}");
+      });
+      this.render.emitLine("}");
+    });
+    this.render.emitLine("}");
+  }
+
+  emitTemporalNexusPayloadRegistry() {
+    const payloadVisitors = this.getNexusPayloadVisitors();
+    if (
+      !this.nexusRendererOptions.temporalNexusPayloadCodecSupport ||
+      payloadVisitors.length == 0
+    ) {
+      return;
+    }
+
+    for (const visitor of payloadVisitors) {
+      const typedHelperName = this.makeTemporalClassRewriteHelperName(
+        visitor.inputTypeName,
+      );
+      this.render.emitBlock(
+        [
+          "func ",
+          visitor.helperName,
+          "(",
+          "value any, payloadVisitor TemporalNexusPayloadVisitorFunc, visitSearchAttributes bool",
+          ") (any, error)",
+        ],
+        () => {
+          this.render.emitLine(
+            "typedValue, ok := value.(*",
+            visitor.inputTypeName,
+            ")",
+          );
+          this.render.emitLine("if !ok {");
+          this.render.indent(() =>
+            this.render.emitLine(
+              'return nil, errors.New("temporal nexus payload visitor expected ',
+              "*",
+              visitor.inputTypeName,
+              '")',
+            ),
+          );
+          this.render.emitLine("}");
+          this.render.emitLine(
+            "visitor := &temporalNexusPayloadVisitor{payloadVisitor: payloadVisitor, shouldVisitSearchAttributes: visitSearchAttributes}",
+          );
+          this.render.emitLine(
+            "visitedValue, err := visitor.",
+            typedHelperName,
+            "(typedValue)",
+          );
+          this.render.emitLine("if err != nil {");
+          this.render.indent(() => this.render.emitLine("return nil, err"));
+          this.render.emitLine("}");
+          this.render.emitLine("return visitedValue, nil");
+        },
+      );
+      this.render.ensureBlankLine();
+    }
+
+    this.render.emitLine(
+      "var TemporalNexusPayloadVisitors = map[TemporalNexusPayloadVisitorKey]TemporalNexusPayloadHandler{",
+    );
+    this.render.indent(() => {
+      for (const visitor of payloadVisitors) {
+        this.render.emitLine(
+          "{ServiceName: ",
+          this.renderStringLiteral(visitor.serviceName),
+          ", OperationName: ",
+          this.renderStringLiteral(visitor.operationName),
+          "}: {InputType: func() any { return &",
+          visitor.inputTypeName,
+          "{} }, Visit: ",
+          visitor.helperName,
+          "},",
+        );
+      }
+    });
+    this.render.emitLine("}");
+    this.render.ensureBlankLine();
+    this.render.emitBlock(
+      "func GetTemporalNexusPayloadVisitor(serviceName, operationName string) *TemporalNexusPayloadHandler",
+      () => {
+        this.render.emitLine(
+          "handler, ok := TemporalNexusPayloadVisitors[TemporalNexusPayloadVisitorKey{ServiceName: serviceName, OperationName: operationName}]",
+        );
+        this.render.emitLine(
+          "if !ok || handler.InputType == nil || handler.Visit == nil {",
+        );
+        this.render.indent(() => this.render.emitLine("return nil"));
+        this.render.emitLine("}");
+        this.render.emitLine("return &handler");
+      },
+    );
+    this.render.ensureBlankLine();
+    this.render.emitBlock(
+      "func IsTemporalNexusOperation(serviceName, operationName string) bool",
+      () => {
+        this.render.emitLine(
+          "return GetTemporalNexusPayloadVisitor(serviceName, operationName) != nil",
+        );
+      },
+    );
+  }
+
+  getNexusPayloadVisitors(): readonly TemporalOperationPayloadVisitor[] {
+    if (this.nexusPayloadVisitors) {
+      return this.nexusPayloadVisitors;
+    }
+    this.nexusPayloadVisitors = Object.entries(this.schema.services).flatMap(
+      ([serviceName, service]) =>
+        Object.entries(service.operations).flatMap(
+          ([operationName, operation]) => {
+            if (operation.input?.kind != "jsonSchema") {
+              return [];
+            }
+            const plan = this.getTemporalClassRewritePlanByName(
+              operation.input.name,
+            );
+            if (!plan) {
+              return [];
+            }
+            return [
+              {
+                serviceName,
+                operationName,
+                inputTypeName: operation.input.name,
+                helperName: this.makeTemporalNexusRewriterFunctionName(
+                  operation.input.name,
+                ),
+              },
+            ];
+          },
+        ),
+    );
+    return this.nexusPayloadVisitors;
+  }
+
+  getTemporalClassRewritePlans(): ReadonlyMap<
+    string,
+    TemporalClassRewritePlan
+  > {
+    if (!this.temporalClassRewritePlans) {
+      this.temporalClassRewritePlans = new Map();
+      for (const visitor of this.getNexusPayloadVisitors()) {
+        this.getTemporalClassRewritePlanByName(visitor.inputTypeName);
+      }
+    }
+    return this.temporalClassRewritePlans;
+  }
+
+  getTemporalClassRewritePlanByName(
+    typeName: string,
+  ): TemporalClassRewritePlan | undefined {
+    const topLevel = this.render.topLevels.get(typeName);
+    if (!(topLevel instanceof ClassType)) {
+      return undefined;
+    }
+    return this.getTemporalClassRewritePlan(topLevel);
+  }
+
+  getTemporalClassRewritePlan(
+    type: ClassType,
+  ): TemporalClassRewritePlan | undefined {
+    const typeName = this.render.sourcelikeToString(this.render.goType(type));
+    const existingPlan = this.temporalClassRewritePlans?.get(typeName);
+    if (existingPlan) {
+      return existingPlan;
+    }
+    if (this.temporalClassRewritePlanInProgress?.has(typeName)) {
+      return undefined;
+    }
+    if (!this.temporalClassRewritePlanInProgress) {
+      this.temporalClassRewritePlanInProgress = new Set();
+    }
+    this.temporalClassRewritePlanInProgress.add(typeName);
+
+    try {
+      const directRewriteKind = this.getTemporalDirectRewriteKind(typeName);
+      const fieldRewrites: TemporalFieldRewrite[] = [];
+      const fieldNamer = this.render.namerForObjectProperty();
+      for (const [jsonName, property] of type.getProperties()) {
+        const terminalRewrite = this.getTemporalTerminalFieldRewrite(
+          typeName,
+          jsonName,
+          goFieldName(fieldNamer, jsonName),
+        );
+        if (terminalRewrite) {
+          fieldRewrites.push(terminalRewrite);
+          continue;
+        }
+        const childRewrite = this.getTemporalChildFieldRewrite(
+          property.type,
+          jsonName,
+          goFieldName(fieldNamer, jsonName),
+        );
+        if (childRewrite) {
+          fieldRewrites.push(childRewrite);
+        }
+      }
+      if (!directRewriteKind && fieldRewrites.length == 0) {
+        return undefined;
+      }
+      const plan: TemporalClassRewritePlan = {
+        typeName,
+        helperName: this.makeTemporalClassRewriteHelperName(typeName),
+        directRewriteKind,
+        onlyWhenVisitSearchAttributes: typeName == "SearchAttributes",
+        fieldRewrites,
+      };
+      if (!this.temporalClassRewritePlans) {
+        this.temporalClassRewritePlans = new Map();
+      }
+      this.temporalClassRewritePlans.set(typeName, plan);
+      return plan;
+    } finally {
+      this.temporalClassRewritePlanInProgress.delete(typeName);
+    }
+  }
+
+  getTemporalDirectRewriteKind(
+    typeName: string,
+  ): TemporalTerminalRewriteKind | undefined {
+    if (typeName == "Payload") {
+      return "payload";
+    }
+    if (typeName == "Payloads") {
+      return "payloads";
+    }
+    return undefined;
+  }
+
+  getTemporalTerminalFieldRewrite(
+    typeName: string,
+    jsonName: string,
+    goFieldName: string,
+  ): TemporalFieldRewrite | undefined {
+    void typeName;
+    void jsonName;
+    void goFieldName;
+    return undefined;
+  }
+
+  getTemporalChildFieldRewrite(
+    type: Type,
+    jsonName: string,
+    goFieldName: string,
+  ): TemporalFieldRewrite | undefined {
+    const normalizedType = this.unwrapNullableType(type);
+    if (!normalizedType) {
+      return undefined;
+    }
+    if (normalizedType instanceof ClassType) {
+      const plan = this.getTemporalClassRewritePlan(normalizedType);
+      return plan
+        ? { kind: "object", jsonName, goFieldName, helperName: plan.helperName }
+        : undefined;
+    }
+    if (normalizedType instanceof ArrayType) {
+      const itemType = this.unwrapNullableType(normalizedType.items);
+      if (itemType instanceof ClassType) {
+        const plan = this.getTemporalClassRewritePlan(itemType);
+        return plan
+          ? {
+              kind: "array",
+              jsonName,
+              goFieldName,
+              helperName: plan.helperName,
+            }
+          : undefined;
+      }
+      return undefined;
+    }
+    if (normalizedType instanceof MapType) {
+      const valueType = this.unwrapNullableType(normalizedType.values);
+      if (valueType instanceof ClassType) {
+        const plan = this.getTemporalClassRewritePlan(valueType);
+        return plan
+          ? { kind: "map", jsonName, goFieldName, helperName: plan.helperName }
+          : undefined;
+      }
+    }
+    return undefined;
+  }
+
+  unwrapNullableType(type: Type): Type | undefined {
+    if (!(type instanceof UnionType)) {
+      return type;
+    }
+    const nonNullMembers = [...type.members].filter(
+      (member) => member.kind != "null",
+    );
+    return nonNullMembers.length == 1 ? nonNullMembers[0] : undefined;
   }
 
   emitService(serviceName: string, serviceSchema: PreparedService) {

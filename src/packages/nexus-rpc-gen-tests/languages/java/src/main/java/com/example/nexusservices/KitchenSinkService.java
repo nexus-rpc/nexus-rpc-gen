@@ -5,17 +5,22 @@ package com.example.nexusservices;
 import io.nexusrpc.Operation;
 import io.nexusrpc.Service;
 
-/** A service for all types of operations */
+/**
+ * A service for all types of operations
+ */
 @Service
 public interface KitchenSinkService {
-  /** Counts the characters in the string */
+  /**
+   * Counts the characters in the string
+   */
   @Operation
   long scalarArgScalarResult(String input);
 
-  /** Counts the characters in a string */
+  /**
+   * Counts the characters in a string
+   */
   @Operation
-  KitchenSinkServiceComplexArgComplexResultInlineOutput complexArgComplexResultInline(
-      KitchenSinkServiceComplexArgComplexResultInlineInput input);
+  KitchenSinkServiceComplexArgComplexResultInlineOutput complexArgComplexResultInline(KitchenSinkServiceComplexArgComplexResultInlineInput input);
 
   @Operation
   long scalarArgScalarResultExternal(String input);
@@ -23,7 +28,9 @@ public interface KitchenSinkService {
   @Operation
   ComplexOutput complexArgComplexResultExternal(ComplexInput input);
 
-  /** Tests required collections marshal correctly */
+  /**
+   * Tests required collections marshal correctly
+   */
   @Operation
   RequiredCollectionsOutput requiredCollections(RequiredCollectionsInput input);
 }
